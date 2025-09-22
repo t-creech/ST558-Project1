@@ -1,0 +1,17 @@
+---
+title: "Conceptual Questions"
+format: html
+toc: TRUE
+editor_options: 
+  chunk_output_type: inline
+---
+
+> To get a file located one directory above the current working directory, we can use the a relative path in combination with the command to move up a level. Therefore, the relative path would be "../MyData.csv"
+
+> The major benefits of using R projects include mostly saving certain attributes with a specifc task you are trying to achieve in R. Therefore, if you create an R project for a specific homework assignment, things like the working directory, workspace, history, and folder structure and source documents are all saved into that project making it easier to open and pick up where you left off or collaborate.
+
+> Git is a version control software that allows data scientists and other programmers to easy track changes and collaborate on projects that they are working on. Github is an online hosting service for Git projects, allowing users to have remote repos that are tracked by Git.
+
+> The two main differences between a tibble and data.frame are: the printing of a tibble is cleaner and easier to read in its default form compared to a data.frame and tibbles do not coerce down to a vector when you subset to a single column.
+
+> If we wanted to utilize the BaseR chaining operator "|>" to give this function more readibility, we could write: "iris |> as_tibble() |> select(, starts_with("Petal"), Species) |> filter(, Petal.Length < 1.55) |> arrange(, Species)". Here we simply move from the inner-most part of the function, outwards, chaining it together with the operator.

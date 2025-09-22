@@ -1,0 +1,9 @@
+---
+title: "Homework 4"
+format: html
+toc: TRUE
+editor_options: 
+  chunk_output_type: inline
+---
+
+Thanks Dr. Post for putting together this easy to use template!
