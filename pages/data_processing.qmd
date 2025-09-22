@@ -1,0 +1,41 @@
+---
+title: "Data Processing"
+format: html
+toc: TRUE
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Packages
+
+Before we get to writing any functions that we use, let's make sure that we load in the necessary packages we need. We can also include some handy code that searches for the package and installs it in the event that it is not already installed on the device that is running the code.
+
+```{R}
+# We will need the tidyverse and tidycensus packages for this part of the project
+
+# Require will load the package if available and return FALSE if not available by adding the ! we will return TRUE if the package is not available, running the code in the if statement
+if(!require(tidyverse)){
+    # If package is not available, install it then load it again
+    install.packages("tidyverse")
+    library(tidyverse)
+}
+
+# Does same as above
+if(!require(tidycensus)){
+    install.packages("tidycensus")
+    library(tidycensus)
+}
+```
+
+# Functions
+This project tasks us with writing functions to tackle API querying and processing of the data. The easiest way to achieve this is to "build" the functions with multiple helper functions that can be tested individually and then combined together into a larger function that will handle the tasks required.
+
+## Helper Functions
+One of the great benefits of using and API to collect the data is that a lot of the processing of the data can be handled on the API end by adjusting the URL that is passed into the `GET() function. First, let's work to get the API working and just getting it to return any data.
+
+```{R}
+
+basic_data <- function(base_url = ) {
+  
+}
+

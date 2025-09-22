@@ -1,0 +1,10 @@
+---
+title: "Data Summarization"
+format: html
+toc: TRUE
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+# Functions

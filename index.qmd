@@ -1,9 +1,10 @@
 ---
-title: "Homework 4"
+title: "Project 1"
 format: html
 toc: TRUE
 editor_options: 
   chunk_output_type: inline
 ---
 
-Thanks Dr. Post for putting together this easy to use template!
+#Project Introduction
+In this project, we will be implementing data processing and summarization functions on data that is pulled from the PUMS Census API!

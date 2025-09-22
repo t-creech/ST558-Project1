@@ -3,12 +3,12 @@ project:
   output-dir: docs
   render: 
     - index.qmd
-    - pages/concepts.qmd
-    - pages/read_delimited.qmd
-    - pages/combining.qmd
+    - pages/data_processing.qmd
+    - pages/data_summarization.qmd
+    - pages/data_exploration.qmd
     
 website:
-  title: "Homework 4 Site"
+  title: "Project 1 Site"
   navbar:
     background: primary
     left:
@@ -20,9 +20,9 @@ website:
     collapse-level: 1
     contents:
       - index.qmd
-      - pages/concepts.qmd
-      - pages/read_delimited.qmd
-      - pages/combining.qmd
+      - pages/data_processing.qmd
+      - pages/data_summarization.qmd
+      - pages/data_exploration.qmd
   page-navigation: true
   reader-mode: true
 
