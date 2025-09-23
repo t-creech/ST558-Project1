@@ -20,22 +20,123 @@ if(!require(tidyverse)){
     library(tidyverse)
 }
 
-# Does same as above
+# Does same as above for other packages
 if(!require(tidycensus)){
     install.packages("tidycensus")
     library(tidycensus)
 }
+
+if(!require(httr)){
+    install.packages("httr")
+    library(httr)
+}
+
+if(!require(jsonlite)){
+    install.packages("jsonlite")
+    library(jsonlite)
+}
 ```
 
 # Functions
-This project tasks us with writing functions to tackle API querying and processing of the data. The easiest way to achieve this is to "build" the functions with multiple helper functions that can be tested individually and then combined together into a larger function that will handle the tasks required.
+This project tasks us with writing functions to tackle API querying and processing of the data. The easiest way to achieve this is to "build" the functions with multiple helper functions that can be tested individually and then combined together into a larger function that will handle the tasks required. One of the great benefits of using and API to collect the data is that a lot of the processing of the data can be handled on the API end by adjusting the URL that is passed into the `GET() function.
 
 ## Helper Functions
-One of the great benefits of using and API to collect the data is that a lot of the processing of the data can be handled on the API end by adjusting the URL that is passed into the `GET() function. First, let's work to get the API working and just getting it to return any data.
+First, let's work to get the API working and just getting it to return any data. We can do this by writing a function that we will call "basic_data" that queries the API using a URL from the example list and checking the response code. To help us later, the function will also print the first level of the JSON if the function call is successful, and return TRUE if successful and FALSE if not.
 
 ```{R}
-
-basic_data <- function(base_url = ) {
+# Function that uses the example URL to check status of API to ensure data is being retrieved
+response_test <- function(example_url) {
   
+  # Save response as variable
+  response <- httr::GET(example_url)
+  
+  # Get the status code of the response
+  status <- status_code(response)
+  
+  # 200 is expected if working so if it is 200 print that it is working and invisibly return the response
+  if (status == 200) {
+    print("API working as expected")
+    str(response, max.level = 1)
+    invisible(response)}
+  
+  # If not working, print as such and return FALSE
+  else {
+    print(paste("API not working. Status Code:", status))
+    return(FALSE)}
 }
 
+```
+
+Now that we have built a function that can test whether the API call is working as expected and provides us with some helpful details and functionality, let's dive into some of the further data processing steps. Our first task is going to be to build a helper function that takes the data from the API call and turns it into a tibble. From testing our response_test function (see below), we can see that the data we are interested in is included in the content field, so we will use this field and the functionalities of jsonlite to turn this into a tibble. Upon testing the code, it appears that just taking the parsed data and converting it to a tibble leave the headers in the first row of the tibble. To overcome this, we will specifically identify the headers and the data to build the tibble. We can also go ahead and type convert the data in the tibble to coerce data types.
+
+```{R}
+# Function that takes the response from the API call and turns it into a tibble.
+json_to_tibble <- function(resp) {
+  parsed <- fromJSON(rawToChar(resp$content))
+  
+  # First row headers so save those as variable
+  headers <- parsed[1, drop = TRUE]
+  
+  # Rest is data so save that as such
+  resp_data <- parsed[-1, drop = FALSE]
+  
+  # Convert to tibble, naming columns
+  data_tibble <- as_tibble(resp_data)
+  names(data_tibble) <- headers
+  
+  # Convert to correct column types
+  data_tibble <- type_convert(data_tibble)
+  return(data_tibble)
+}
+  
+```
+
+## Helper Tests
+First we can test the response function to ensure the API is returning a status code of 200.
+
+```{R}
+test_url <- "https://api.census.gov/data/2022/acs/acs1/pums?get=SEX,PWGTP,MAR&SCHL=24"
+
+json <- response_test(test_url)
+```
+Great, now that we have confirmed the API is returning as expected, we can test our next helper function that takes the json and turns it into a tibble.
+
+```{R}
+census_data <- json_to_tibble(json)
+
+census_data
+```
+Looks like this function is working as well!
+
+## API Functions
+Now that we have our necessary helper functions to call the API and process the data, let's work on creating the necessary functions to allow the used to choose the data that is being pulled. We will create two functions. A single year function that pulls data for a single year, and a multi-year function that loops through a list of years provided by the user and combines the data. We will start with the single year function.
+### Single Year Function
+This function has quite a bit of validation that is needed to ensure that the inputs of the user are provided as expected. This will likely be the bulk of what is done by this function. The rest will simply be to combine the inputs of the function into a cohesive URL that can be sent to the API to query.
+```{R}
+single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX")){
+  base_url <- "https://api.census.gov/data/"
+  num_var_options <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWNMP")
+  cat_var_options <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
+  if(!(year %in% 2010:2022)) {
+    return("Please provide a valid year that is between 2010 and 2022, inclusively.")    
+  }
+  if(length(num_vars < 1)) {
+    return("Must select at least one numeric variable to be included in num_vars.")
+  }
+  for(num_var in num_vars) {
+    if(!(num_var %in% num_var_options)) {
+      return("Invalid numeric variable selection. Please choose from: AGEP, GASP, GRPIP, JWAP, JWDP, and JWNMP")
+    }
+  }
+  if(length(cat_vars < 1)) {
+    return("Must select at least one categorical variable to be included in cat_vars.")
+  }
+  for(cat_var in cat_vars) {
+    if(!(cat_var %in% cat_var_options)) {
+      return("Invalid categorical variable selection. Please choose from: FER, HHL, HISPEED, JWTRNS, SCH, SCHL, SEX")
+    }
+  }
+  
+}
+  
+```

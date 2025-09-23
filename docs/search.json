@@ -4,7 +4,7 @@
     "href": "index.html",
     "title": "Project 1",
     "section": "",
-    "text": "In this project, we will be implementing data processing and summarization functions on data that is pulled from the PUMS Census API!",
+    "text": "#Project Introduction In this project, we will be implementing data processing and summarization functions on data that is pulled from the PUMS Census API!",
     "crumbs": [
       "Home",
       "Project 1"
@@ -26,7 +26,40 @@
     "href": "pages/data_processing.html",
     "title": "Data Processing",
     "section": "",
-    "text": "Functions",
+    "text": "Before we get to writing any functions that we use, let’s make sure that we load in the necessary packages we need. We can also include some handy code that searches for the package and installs it in the event that it is not already installed on the device that is running the code.\n\n# We will need the tidyverse and tidycensus packages for this part of the project\n\n# Require will load the package if available and return FALSE if not available by adding the ! we will return TRUE if the package is not available, running the code in the if statement\nif(!require(tidyverse)){\n    # If package is not available, install it then load it again\n    install.packages(\"tidyverse\")\n    library(tidyverse)\n}\n\nLoading required package: tidyverse\n\n\n── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──\n✔ dplyr     1.1.4     ✔ readr     2.1.5\n✔ forcats   1.0.0     ✔ stringr   1.5.1\n✔ ggplot2   3.5.2     ✔ tibble    3.2.1\n✔ lubridate 1.9.4     ✔ tidyr     1.3.1\n✔ purrr     1.0.4     \n── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──\n✖ dplyr::filter() masks stats::filter()\n✖ dplyr::lag()    masks stats::lag()\nℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors\n\n# Does same as above for other packages\nif(!require(tidycensus)){\n    install.packages(\"tidycensus\")\n    library(tidycensus)\n}\n\nLoading required package: tidycensus\n\nif(!require(httr)){\n    install.packages(\"httr\")\n    library(httr)\n}\n\nLoading required package: httr\n\nif(!require(jsonlite)){\n    install.packages(\"jsonlite\")\n    library(jsonlite)\n}\n\nLoading required package: jsonlite\n\nAttaching package: 'jsonlite'\n\nThe following object is masked from 'package:purrr':\n\n    flatten",
+    "crumbs": [
+      "Home",
+      "Data Processing"
+    ]
+  },
+  {
+    "objectID": "pages/data_processing.html#helper-functions",
+    "href": "pages/data_processing.html#helper-functions",
+    "title": "Data Processing",
+    "section": "Helper Functions",
+    "text": "Helper Functions\nFirst, let’s work to get the API working and just getting it to return any data. We can do this by writing a function that we will call “basic_data” that queries the API using a URL from the example list and checking the response code. To help us later, the function will also print the first level of the JSON if the function call is successful, and return TRUE if successful and FALSE if not.\n\n# Function that uses the example URL to check status of API to ensure data is being retrieved\nresponse_test &lt;- function(example_url) {\n  \n  # Save response as variable\n  response &lt;- httr::GET(example_url)\n  \n  # Get the status code of the response\n  status &lt;- status_code(response)\n  \n  # 200 is expected if working so if it is 200 print that it is working and invisibly return the response\n  if (status == 200) {\n    print(\"API working as expected\")\n    str(response, max.level = 1)\n    invisible(response)}\n  \n  # If not working, print as such and return FALSE\n  else {\n    print(paste(\"API not working. Status Code:\", status))\n    return(FALSE)}\n}\n\nNow that we have built a function that can test whether the API call is working as expected and provides us with some helpful details and functionality, let’s dive into some of the further data processing steps. Our first task is going to be to build a helper function that takes the data from the API call and turns it into a tibble. From testing our response_test function (see below), we can see that the data we are interested in is included in the content field, so we will use this field and the functionalities of jsonlite to turn this into a tibble. Upon testing the code, it appears that just taking the parsed data and converting it to a tibble leave the headers in the first row of the tibble. To overcome this, we will specifically identify the headers and the data to build the tibble. We can also go ahead and type convert the data in the tibble to coerce data types.\n\n# Function that takes the response from the API call and turns it into a tibble.\njson_to_tibble &lt;- function(resp) {\n  parsed &lt;- fromJSON(rawToChar(resp$content))\n  \n  # First row headers so save those as variable\n  headers &lt;- parsed[1, drop = TRUE]\n  \n  # Rest is data so save that as such\n  resp_data &lt;- parsed[-1, drop = FALSE]\n  \n  # Convert to tibble, naming columns\n  data_tibble &lt;- as_tibble(resp_data)\n  names(data_tibble) &lt;- headers\n  \n  # Convert to correct column types\n  data_tibble &lt;- type_convert(data_tibble)\n  return(data_tibble)\n}",
+    "crumbs": [
+      "Home",
+      "Data Processing"
+    ]
+  },
+  {
+    "objectID": "pages/data_processing.html#helper-tests",
+    "href": "pages/data_processing.html#helper-tests",
+    "title": "Data Processing",
+    "section": "Helper Tests",
+    "text": "Helper Tests\nFirst we can test the response function to ensure the API is returning a status code of 200.\n\ntest_url &lt;- \"https://api.census.gov/data/2022/acs/acs1/pums?get=SEX,PWGTP,MAR&SCHL=24\"\n\njson &lt;- response_test(test_url)\n\n[1] \"API working as expected\"\nList of 10\n $ url        : chr \"https://api.census.gov/data/2022/acs/acs1/pums?get=SEX,PWGTP,MAR&SCHL=24\"\n $ status_code: int 200\n $ headers    :List of 12\n  ..- attr(*, \"class\")= chr [1:2] \"insensitive\" \"list\"\n $ all_headers:List of 1\n $ cookies    :'data.frame':    1 obs. of  7 variables:\n $ content    : raw [1:937508] 5b 5b 22 53 ...\n $ date       : POSIXct[1:1], format: \"2025-09-23 03:50:11\"\n $ times      : Named num [1:6] 0 0.0247 0.0416 0.0829 0.3049 ...\n  ..- attr(*, \"names\")= chr [1:6] \"redirect\" \"namelookup\" \"connect\" \"pretransfer\" ...\n $ request    :List of 7\n  ..- attr(*, \"class\")= chr \"request\"\n $ handle     :Class 'curl_handle' &lt;externalptr&gt; \n - attr(*, \"class\")= chr \"response\"\n\n\nGreat, now that we have confirmed the API is returning as expected, we can test our next helper function that takes the json and turns it into a tibble.\n\ncensus_data &lt;- json_to_tibble(json)\n\n\n── Column specification ────────────────────────────────────────────────────────\ncols(\n  SEX = col_character()\n)\n\ncensus_data\n\n# A tibble: 176,319 × 1\n   SEX  \n   &lt;chr&gt;\n 1 2    \n 2 2    \n 3 1    \n 4 1    \n 5 1    \n 6 1    \n 7 2    \n 8 1    \n 9 2    \n10 2    \n# ℹ 176,309 more rows\n\n\nLooks like this function is working as well!",
+    "crumbs": [
+      "Home",
+      "Data Processing"
+    ]
+  },
+  {
+    "objectID": "pages/data_processing.html#api-functions",
+    "href": "pages/data_processing.html#api-functions",
+    "title": "Data Processing",
+    "section": "API Functions",
+    "text": "API Functions\nNow that we have our necessary helper functions to call the API and process the data, let’s work on creating the necessary functions to allow the used to choose the data that is being pulled. We will create two functions. A single year function that pulls data for a single year, and a multi-year function that loops through a list of years provided by the user and combines the data. We will start with the single year function. ### Single Year Function",
     "crumbs": [
       "Home",
       "Data Processing"
