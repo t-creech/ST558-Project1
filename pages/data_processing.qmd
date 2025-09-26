@@ -105,6 +105,7 @@ Looks like this function is working as well!
 
 ## API Functions
 Now that we have our necessary helper functions to call the API and process the data, let's work on creating the necessary functions to allow the user to choose the data that is being pulled. We will create two functions. A single year function that pulls data for a single year, and a multi-year function that loops through a list of years provided by the user and combines the data. We will start with the single year function.
+
 ### Single Year Function
 This function has quite a bit of validation that is needed to ensure that the inputs of the user are provided as expected. This will likely be the bulk of what is done by this function. The rest will simply be to combine the inputs of the function into a cohesive URL that can be sent to the API to query.
 ```{R}
