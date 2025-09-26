@@ -104,7 +104,7 @@ census_data
 Looks like this function is working as well!
 
 ## API Functions
-Now that we have our necessary helper functions to call the API and process the data, let's work on creating the necessary functions to allow the used to choose the data that is being pulled. We will create two functions. A single year function that pulls data for a single year, and a multi-year function that loops through a list of years provided by the user and combines the data. We will start with the single year function.
+Now that we have our necessary helper functions to call the API and process the data, let's work on creating the necessary functions to allow the user to choose the data that is being pulled. We will create two functions. A single year function that pulls data for a single year, and a multi-year function that loops through a list of years provided by the user and combines the data. We will start with the single year function.
 ### Single Year Function
 This function has quite a bit of validation that is needed to ensure that the inputs of the user are provided as expected. This will likely be the bulk of what is done by this function. The rest will simply be to combine the inputs of the function into a cohesive URL that can be sent to the API to query.
 ```{R}
@@ -224,3 +224,33 @@ single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SE
 print(single_year_data(num_vars = c("JWAP", "JWDP")))
   
 ```
+
+
+```{R}
+# ---------- Wrapper function for multiple years----------
+library(dplyr)
+multiple_years <- function(years,...) {
+  multiple_yr_data <- lapply(years, function(y) {
+    res <- single_year_data(y,...)  # call single-year function
+# Ensure res is a tibble
+if (!("data.frame" %in% class(res))) {
+  res <- tibble(value = res)  # or wrap the single value appropriately
+}
+    # ensure year column exists
+    if (!"year" %in% names(res)) {
+      res <- res %>% mutate(year = y)
+    }
+    res
+  })
+
+  bind_rows(multiple_yr_data)
+}
+```
+
+```{R}
+# example
+y <- 2012:2015
+final_tbl <- multiple_years(y,num_vars = c("JWAP", "JWDP"))
+print(final_tbl)
+```
+
