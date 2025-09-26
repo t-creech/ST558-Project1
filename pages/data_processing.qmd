@@ -224,10 +224,10 @@ single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SE
 print(single_year_data(num_vars = c("JWAP", "JWDP")))
   
 ```
-
+### Multi Year Function
 
 ```{R}
-# ---------- Wrapper function for multiple years----------
+#  ---------- Wrapper function for multiple years----------
 library(dplyr)
 multiple_years <- function(years,...) {
   multiple_yr_data <- lapply(years, function(y) {
