@@ -303,20 +303,37 @@ data_clean <- function(data) {
         Start_Time_Form = parse_date_time(Start_Time, orders = "I:M p"),
         End_Time_Form = parse_date_time(End_Time, orders = "I:M p"),
         Midpoint = Start_Time_Form + (End_Time_Form - Start_Time_Form) / 2,
-        !!time_var := format(Midpoint, "%I:%M %p")
-      )
+        label = format(Midpoint, "%I:%M %p")
+      ) |>
+      select(codes, label)
+      data <- data |> 
+        mutate(!!sym(time_var) := str_pad(!!sym(time_var), width = 3, side = "left", pad = "0")) |>
+        left_join(items_clean, by = setNames("codes", time_var)) |> 
+        select(!all_of(time_var)) |>
+        rename(!!sym(time_var) := "label")
   }
+  return(data)
 }
 ```
 
 ```{R}
 data <- single_year_data(num_vars = c("JWAP", "JWDP"))
+print(data)
 ```
 ```{R}
 data_clean(data)
 ```
 
+## Final functions
+### Single Year Function
+```{R}
+single_year <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX"), geography = "State", geo_subset = 15) {
+  data <- single_year_data(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX"), geography = "State", geo_subset = 15)
+  data <- data_clean(data)
+  return(data)
+}
 
+```
 
 ### Multi Year Function
 
@@ -324,7 +341,7 @@ data_clean(data)
 #  ---------- Wrapper function for multiple years----------
 multiple_years <- function(years,...) {
   multiple_yr_data <- lapply(years, function(y) {
-    res <- single_year_data(y,...)  # call single-year function
+    res <- single_year(y,...)  # call single-year function
 # Ensure res is a tibble
 if (!("data.frame" %in% class(res))) {
   res <- tibble(value = res)  # or wrap the single value appropriately
