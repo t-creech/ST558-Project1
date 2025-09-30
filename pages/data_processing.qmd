@@ -30,6 +30,11 @@ if(!require(jsonlite)){
     install.packages("jsonlite")
     library(jsonlite)
 }
+
+if(!require(dplyr)){
+    install.packages("dplyr")
+    library(dplyr)
+}
 ```
 
 # Functions
@@ -79,12 +84,11 @@ json_to_tibble <- function(resp) {
   data_tibble <- as_tibble(resp_data)
   names(data_tibble) <- headers
   
-  # Convert to correct column types
-  # data_tibble <- type_convert(data_tibble)
   return(data_tibble)
 }
   
 ```
+
 
 ## Helper Tests
 First we can test the response function to ensure the API is returning a status code of 200.
@@ -106,7 +110,7 @@ Looks like this function is working as well!
 ## API Functions
 Now that we have our necessary helper functions to call the API and process the data, let's work on creating the necessary functions to allow the user to choose the data that is being pulled. We will create two functions. A single year function that pulls data for a single year, and a multi-year function that loops through a list of years provided by the user and combines the data. We will start with the single year function.
 
-### Single Year Function
+### Single Year API Call
 This function has quite a bit of validation that is needed to ensure that the inputs of the user are provided as expected. This will likely be the bulk of what is done by this function. The rest will simply be to combine the inputs of the function into a cohesive URL that can be sent to the API to query.
 ```{R}
 single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX"), geography = "State", geo_subset = 15){
@@ -114,42 +118,54 @@ single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SE
   # We will start with the base URL
   base_url <- "https://api.census.gov/data/"
   # List out possible options for each selection in vectors to validate against
-  num_var_options <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWNMP")
+  num_var_options <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
   cat_var_options <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
-  state_options <- c("01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13", "15", "16", "17", "18", "19", "20", "21", 
-                     "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
-                     "40", "41", "42", "44", "45", "46", "47", "48", "49", "50", "51", "53", "54", "55", "56", "72")
+  state_options <- c("01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13", "15", "16",
+                     "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
+                     "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42",
+                     "44", "45", "46", "47", "48", "49", "50", "51", "53", "54", "55", "56", "72")
   geography_level_option <- c("All", "State", "Region", "Division")
   # Set up clauses
   for_clause <- NULL
   get_clause <- NULL
   # Validate the year to ensure it is in applicable years
   if(!(year %in% 2010:2022)) {
-    return("Please provide a valid year that is between 2010 and 2022, inclusively.")    
+    stop("Please provide a valid year that is between 2010 and 2022, inclusively.")    
+  }
+  else if (year == 2020) {
+    stop("Census data not availble for 2020 due to covid pandemic")
   }
   # Validate that at least one numeric variable passed in
   if(length(num_vars) < 1) {
-    return("Must select at least one numeric variable to be included in num_vars.")
+    stop("Must select at least one numeric variable to be included in num_vars.")
   }
   # Validate numeric variable is one of options
   for(num_var in num_vars) {
     if(!(num_var %in% num_var_options)) {
-      return("Invalid numeric variable selection. Please choose from: AGEP, GASP, GRPIP, JWAP, JWDP, and JWNMP")
+      stop("Invalid numeric variable selection. Please choose from: AGEP, GASP, GRPIP, JWAP, JWDP, and JWMNP")
     }
   }
   # Validate that at least one categorical variable is included
   if(length(cat_vars) < 1) {
-    return("Must select at least one categorical variable to be included in cat_vars.")
+    stop("Must select at least one categorical variable to be included in cat_vars.")
   }
   # Check to see if categorical variable is valid
   for(cat_var in cat_vars) {
     if(!(cat_var %in% cat_var_options)) {
-      return("Invalid categorical variable selection. Please choose from: FER, HHL, HISPEED, JWTRNS, SCH, SCHL, SEX")
+      stop("Invalid categorical variable selection. Please choose from: FER, HHL, HISPEED, JWTRNS, SCH, SCHL, SEX")
+    }
+    else if (cat_var == "HISPEED" & !(year %in% c(2019, 2022))) {
+      cat_vars[cat_vars != "HISPEED"]
+      print("Skipping HISPEED as not available")
+    }
+    else if (cat_var == "JWTRNS"& !(year %in% c(2019, 2022))) {
+      cat_vars[cat_vars != "JWTRNS"]
+      print("Skipping JWTRNS as not available")
     }
   }
   # Check to see if geography selection was valid
   if(!(geography %in% geography_level_option)) {
-    return("Invalid geography level. Please choose from: All, State, Region, Division")
+    stop("Invalid geography level. Please choose from: All, State, Region, Division")
   }
   # If user selects all, leave for clause as null since none needs to be passed
   if(geography == "All") {
@@ -163,13 +179,13 @@ single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SE
     else {
       state_codes <- sprintf("%02d", as.integer(geo_subset))
       if (any(is.na(state_codes))) {
-        return("Geography Subset must be * or state code")
+        stop("Geography Subset must be * or state code")
       }
       bad_states <- setdiff(state_codes, state_options)
       if (length(bad_states) == 0) {
         for_clause <- paste0("for=state:", paste(state_codes, collapse = ","))
       }
-      else {return("Invalid state code. Please select from available codes.")}
+      else {stop("Invalid state code. Please select from available codes.")}
     }
   }
   # Build for clause in the event region is selected
@@ -180,13 +196,13 @@ single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SE
     else {
       region_codes <- as.integer(geo_subset)
       if (any(is.na(region_codes))) {
-        return("Geography Subset must be * or region code")
+        stop("Geography Subset must be * or region code")
       }
       bad_regions <- setdiff(region_codes, c(1:4, 9))
       if (length(bad_regions) == 0) {
         for_clause <- paste0("for=region:", paste(region_codes, collapse = ","))
       }
-      else {return("Invalid region code. Please select all using * or choose 1-4, or 9")}
+      else {stop("Invalid region code. Please select all using * or choose 1-4, or 9")}
     }
   }
   # Build for clause in the event division is selected
@@ -197,13 +213,13 @@ single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SE
     else {
       division_codes <- as.integer(geo_subset)
       if (any(is.na(division_codes))) {
-        return("Geography Subset must be * or division code")
+        stop("Geography Subset must be * or division code")
       }
       bad_divisions <- setdiff(division_codes, c(0:9))
       if (length(bad_divisions) == 0) {
         for_clause <- paste0("for=division:", paste(division_codes, collapse = ","))
       }
-      else {return("Invalid division code. Please select all using * or choose 0-9")}
+      else {stop("Invalid division code. Please select all using * or choose 0-9")}
     }
   }
   # Build URL per API specifications
@@ -214,22 +230,98 @@ single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SE
   response <- response_test(query_url)
   requested_data <- json_to_tibble(response)
   
-  # Per API docs, some data for categorical and time variables is passed by the API as integers which are currently maintained as doubles 
-  # We can build necessary tibbles to perform relevant lookups to fix this
-  
-  
+  # Finally, let's add the year to a column, so we know what year we are pulling in
+  requested_data <- requested_data |> mutate(year = as.character(year))
   
   return(requested_data)
 }
 
-print(single_year_data(num_vars = c("JWAP", "JWDP")))
-  
+print(single_year_data())
 ```
+### Data Cleaning
+Now that we have pulled in the data from the API, a quick inspection of the tibble above will show that not all of the fields are very useful in their current forms. For example, fields that we would expect to be categorical or time variables, are just integers. If we investigate, per API docs, some data for categorical and time variables is passed by the API as integers which are currently maintained as doubles. Therefore, we will need to build necessary tibbles to perform relevant lookups to fix this data. To do this, we will create another function called field mapping that handles this task for us. If we look at the fields we are allowing the use to select. Fields that are integers already and make sense as integers, should be fine to leave after adjusting for N/A. The remainder will need to be parsed and mapped. To make this easier on ourselves, we can use an API call to get the field items and make these their own tibbles! It is important that we only do this for the variables that need to be parsed and mapped through to make sure we do not overwrite the int values.
+
+```{R}
+# Possible data fields for numeric data and correct type needed
+# "AGEP" (int), "GASP" (int), "GRPIP" (percent), "JWAP" (time), "JWDP" (time), "JWMNP" (int)
+
+# Possible data fields for categorical data and correct type needed
+# "FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX" : All will become factors
+
+data_clean <- function(data) {
+  # First, we can get the column names of the tibble that is passed in
+  columns <- names(data)
+  # Now we can check set intersections with the list of numeric, time, and categorical data fields to get the fields in each type we need to update
+  unique_years <- unique(data$year)
+  if (length(unique_years) != 1) {
+    stop("Pass a single-year tibble to data_clean().")
+  }
+  year <- as.integer(unique_years[1])
+  columns_to_check <- setdiff(columns, c("year", "PWGTP"))
+  num_var_check <- intersect(columns_to_check, c("AGEP", "GASP", "GRPIP", "JWMNP"))
+  cat_var_check <- intersect(columns_to_check, c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX"))
+  time_vars_check <- intersect(columns_to_check, c("JWAP", "JWDP"))
+  base_url <- "https://api.census.gov/data/"
+  # Now we can get jsons with explanations of the variables from the API. We will start with numeric variable. Here we can just change the data type
+  for (num_var in num_var_check) {
+    data[[num_var]] <- as.integer(data[[num_var]])
+  }
+  # Now for categorical data, we can get the mappings for the characters we were given and map them using factors
+  for (cat_var in cat_var_check) {
+    query_url <- paste0(base_url, year, "/acs/acs1/pums/variables/", cat_var, ".json")
+    response <- response_test(query_url)
+    # Since we expect the data to be returned in a different format, we need to parse this data differently
+    parsed <- fromJSON(rawToChar(response$content))
+    items <- parsed$values$item
+    if (!is.null(items)) {
+      codes  <- names(items)
+      labels <- unname(unlist(items))
+      data[[cat_var]] <- factor(as.character(data[[cat_var]]), levels = codes, labels = labels)
+    }
+  }
+  # Finally, time is a bit more complicated. We must get the times form the API, but we also need to parse them and find the midpoint
+  for (time_var in time_vars_check) {
+    query_url <- paste0(base_url, year, "/acs/acs1/pums/variables/", time_var, ".json")
+    response <- response_test(query_url)
+    # Since we expect the data to be returned in a different format, we need to parse this data differently
+    parsed <- fromJSON(rawToChar(response$content))
+    items <- parsed$values$item
+    if (!is.null(items)) {
+      windows <- tibble(codes = names(items), label = unname(unlist(items)))
+    }
+    na_rows <- windows |> filter(grepl("N/A", label, ignore.case = TRUE))
+    items_clean <- windows |> filter(!grepl("N/A", label, ignore.case = TRUE))
+    items_clean <- items_clean |> separate(col = label, into = c("Start_Time", "End_Time"), sep = " to ") |> 
+      mutate(Start_Time = str_trim(Start_Time), End_Time = str_trim(End_Time)) |>
+      mutate(
+        Start_Time = str_replace_all(Start_Time, "a\\.m\\.", "AM"),
+        Start_Time = str_replace_all(Start_Time, "p\\.m\\.", "PM"),
+        End_Time = str_replace_all(End_Time, "a\\.m\\.", "AM"),
+        End_Time = str_replace_all(End_Time, "p\\.m\\.", "PM"),
+      ) |>
+      mutate(
+        Start_Time_Form = parse_date_time(Start_Time, orders = "I:M p"),
+        End_Time_Form = parse_date_time(End_Time, orders = "I:M p"),
+        Midpoint = Start_Time_Form + (End_Time_Form - Start_Time_Form) / 2,
+        !!time_var := format(Midpoint, "%I:%M %p")
+      )
+  }
+}
+```
+
+```{R}
+data <- single_year_data(num_vars = c("JWAP", "JWDP"))
+```
+```{R}
+data_clean(data)
+```
+
+
+
 ### Multi Year Function
 
 ```{R}
 #  ---------- Wrapper function for multiple years----------
-library(dplyr)
 multiple_years <- function(years,...) {
   multiple_yr_data <- lapply(years, function(y) {
     res <- single_year_data(y,...)  # call single-year function
