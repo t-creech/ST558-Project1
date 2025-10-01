@@ -6,83 +6,103 @@ editor_options:
   chunk_output_type: inline
 ---
 
+## Package Imports
+First, we can import the necessary packages we need.
 
 ```{r warning=FALSE}
 #load required libraries
-library(dplyr)     
-library(ggplot2)    
-library(lubridate)  
+if(!require(tidyverse)){
+    # If package is not available, install it then load it again
+    install.packages("tidyverse")
+    library(tidyverse)
+}
 
+if(!require(ggplot2)){
+    install.packages("ggplot2")
+    library(ggplot2)
+}
+
+if(!require(quantreg)){
+    install.packages("quantreg")
+    library(quantreg)
+}
 
 ```
 
+## Data Loading
+
+Now, we can go ahead and load in the data that was exported by our data processing portion.
 
 ```{r}
 #load the tibble we will be working with
-
-final_single_year <- readRDS("final_single_year.rds")
-class(final_single_year)   # tibble or data.frame
-head(final_single_year)
-```
-```{r}
-class(final_single_year) <- c("census", class(final_single_year))
+test_data <- readRDS("summarization_test_data.rds")
+class(test_data)   # tibble or data.frame
+head(test_data)
 ```
 
-
-
-
-# Functions
-
- Here is the  function that produces means and standard deviations for our numeric variable(s) and counts for our categorical variable(s).
+## Functions
+### Summarization
+Here is the  function that produces means and standard deviations for our numeric variable(s) and counts for our categorical variable(s).
 ```{r}
-summary.census<- function(df=final_single_year, num_vars=c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", 
-"JWMNP"), char_vars=c("SEX","FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL"))
-  {
- weight_vector <- final_single_year[["PWGTP"]]
+summary.census<- function(df, num_vars=c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP"), cat_vars=c("SEX","FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL")) {
   
+  weight_vector <- df[["PWGTP"]]
   results <- list() #initialize list
+  columns <- names(df)
+  num_vars_summarization <- intersect(columns, num_vars)
+  cat_vars_summarization <- intersect(columns, cat_vars)
   
-  for (var in num_vars) {
-    numeric_vector <- as.numeric(final_single_year[[var]]) #make sure all variables (including time variables) change to numeric to do calculations on them
-    
-    
-    sample_mean <- sum(numeric_vector * weight_vector, na.rm = TRUE) / sum(weight_vector, na.rm = TRUE) #calculate sample mean
-    sample_sd  <- sqrt(sum((numeric_vector^2) * weight_vector, na.rm = TRUE) / sum(weight_vector, na.rm = TRUE) -        sample_mean^2) #calculate sample sd
-    
-    
-      results[[var]] <- list(mean = sample_mean, sd = sample_sd) #put them as list
+  for (var in num_vars_summarization) {
+    #make sure all variables (including time variables) change to numeric to do calculations on them
+    numeric_vector <- as.numeric(df[[var]]) 
+    #calculate sample mean
+    sample_mean <- sum(numeric_vector * weight_vector, na.rm = TRUE) / sum(weight_vector, na.rm = TRUE) 
+    #calculate sample sd
+    sample_sd  <- sqrt(sum((numeric_vector^2) * weight_vector, na.rm = TRUE) / sum(weight_vector, na.rm = TRUE) - sample_mean^2) 
+    # Put the results in a list
+    results[[var]] <- list(mean = sample_mean, sd = sample_sd)
   }
   
- # character / categorical variables
-for (var in char_vars) {
-    counts <- (final_single_year) %>%
-       group_by(across(all_of(var))) %>%    
-     summarise(count = sum(.data[["PWGTP"]], na.rm = TRUE), 
-              .groups = "drop")
+  # character / categorical variables
+  for (var in cat_vars_summarization) {
+    # First create a tibble by grouping and summarising
+    counts <- (df) %>%
+    group_by(across(all_of(var))) %>%
+    summarise(count = sum(df[["PWGTP"]], na.rm = TRUE), .groups = "drop") %>%
+    # Now we can deframe to trasform from a tibble to a named list
+    deframe()
     
-    results[[var]] <- counts
-}
+    results[[var]] <- as.list(counts)
+  }
  return(results) # returns a named list
 }
+```
+
+### Plotting
+
+For the plotting function, since we have not gone over ggplot2, we used Dr. Post's code provided in the assignment with minor alterations to get the axes to label correctly.
+```{R}
+plot.census <- function(df, num_var, cat_var) {
+  ggplot(df,
+  aes(x = !!sym(cat_var), y = !!sym(num_var), weight = PWGTP)) +
+  geom_boxplot()
+}
+```
+
+## Function Testing
+
+First, we can test our summary function by passing in our test data to the function. Since we are testing, we will go ahead and summarize all of the possible variables.
+```{R}
 # Test out the function
-res <- summary.census(df=final_single_year)
+res <- summary.census(df=test_data)
 res
 class(res)
-
 ```
+Looks like everything worked as expected!
 
-# Plot
-
-```{r warning=FALSE}
-cat_var<-("SEX")
-num_var<-("AGEP")
-ggplot(final_single_year,
-aes(x = get(cat_var), y = get(num_var), weight = PWGTP)) +
-geom_boxplot()+  
-  labs(
-    x = cat_var,
-    y = num_var,
-    title = paste("Plot of", cat_var, "vs", num_var)) +
-  theme(plot.title = element_text(hjust = 0.5)) #rename axis and title, center the title
+Now we can test the plotting function:
+```{R}
+plot.census(test_data, "AGEP", "SEX")
 ```
+Great! Looks like that one is working as well!
 
