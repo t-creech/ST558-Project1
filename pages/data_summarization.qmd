@@ -7,4 +7,82 @@ editor_options:
 ---
 
 
+```{r warning=FALSE}
+#load required libraries
+library(dplyr)     
+library(ggplot2)    
+library(lubridate)  
+
+
+```
+
+
+```{r}
+#load the tibble we will be working with
+
+final_single_year <- readRDS("final_single_year.rds")
+class(final_single_year)   # tibble or data.frame
+head(final_single_year)
+```
+```{r}
+class(final_single_year) <- c("census", class(final_single_year))
+```
+
+
+
+
 # Functions
+
+ Here is the  function that produces means and standard deviations for our numeric variable(s) and counts for our categorical variable(s).
+```{r}
+summary.census<- function(df=final_single_year, num_vars=c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", 
+"JWMNP"), char_vars=c("SEX","FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL"))
+  {
+ weight_vector <- final_single_year[["PWGTP"]]
+  
+  results <- list() #initialize list
+  
+  for (var in num_vars) {
+    numeric_vector <- as.numeric(final_single_year[[var]]) #make sure all variables (including time variables) change to numeric to do calculations on them
+    
+    
+    sample_mean <- sum(numeric_vector * weight_vector, na.rm = TRUE) / sum(weight_vector, na.rm = TRUE) #calculate sample mean
+    sample_sd  <- sqrt(sum((numeric_vector^2) * weight_vector, na.rm = TRUE) / sum(weight_vector, na.rm = TRUE) -        sample_mean^2) #calculate sample sd
+    
+    
+      results[[var]] <- list(mean = sample_mean, sd = sample_sd) #put them as list
+  }
+  
+ # character / categorical variables
+for (var in char_vars) {
+    counts <- (final_single_year) %>%
+       group_by(across(all_of(var))) %>%    
+     summarise(count = sum(.data[["PWGTP"]], na.rm = TRUE), 
+              .groups = "drop")
+    
+    results[[var]] <- counts
+}
+ return(results) # returns a named list
+}
+# Test out the function
+res <- summary.census(df=final_single_year)
+res
+class(res)
+
+```
+
+# Plot
+
+```{r warning=FALSE}
+cat_var<-("SEX")
+num_var<-("AGEP")
+ggplot(final_single_year,
+aes(x = get(cat_var), y = get(num_var), weight = PWGTP)) +
+geom_boxplot()+  
+  labs(
+    x = cat_var,
+    y = num_var,
+    title = paste("Plot of", cat_var, "vs", num_var)) +
+  theme(plot.title = element_text(hjust = 0.5)) #rename axis and title, center the title
+```
+
