@@ -30,6 +30,8 @@ if(!require(jsonlite)){
     install.packages("jsonlite")
     library(jsonlite)
 }
+
+
 ```
 
 # Functions
@@ -137,6 +139,7 @@ single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SE
       return("Invalid numeric variable selection. Please choose from: AGEP, GASP, GRPIP, JWAP, JWDP, and JWNMP")
     }
   }
+ 
   # Validate that at least one categorical variable is included
   if(length(cat_vars) < 1) {
     return("Must select at least one categorical variable to be included in cat_vars.")
@@ -216,14 +219,19 @@ single_year_data <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SE
   
   # Per API docs, some data for categorical and time variables is passed by the API as integers which are currently maintained as doubles 
   # We can build necessary tibbles to perform relevant lookups to fix this
+ 
   
-  
-  
+
+
   return(requested_data)
 }
 
-print(single_year_data(num_vars = c("JWAP", "JWDP")))
+print(single_year_data(num_vars = c("JWAP", "JWDP","AGEP"),cat_vars=c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")))
+  pumps_Data<-print(single_year_data(num_vars = c("JWAP", "JWDP","AGEP"),cat_vars=c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")))
   
+  str(pumps_Data)
+  
+
 ```
 ### Multi Year Function
 
@@ -254,4 +262,3 @@ y <- 2012:2015
 final_tbl <- multiple_years(y,num_vars = c("JWAP", "JWDP"))
 print(final_tbl)
 ```
-
