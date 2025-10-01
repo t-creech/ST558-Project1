@@ -210,6 +210,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#single-year-api-call" id="toc-single-year-api-call" class="nav-link" data-scroll-target="#single-year-api-call">Single Year API Call</a></li>
   <li><a href="#data-cleaning" id="toc-data-cleaning" class="nav-link" data-scroll-target="#data-cleaning">Data Cleaning</a></li>
+  <li><a href="#api-function-testing" id="toc-api-function-testing" class="nav-link" data-scroll-target="#api-function-testing">API Function Testing</a></li>
   </ul></li>
   <li><a href="#final-functions" id="toc-final-functions" class="nav-link" data-scroll-target="#final-functions">Final functions</a>
   <ul class="collapse">
@@ -367,8 +368,8 @@ List of 10
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
  $ content    : raw [1:937508] 5b 5b 22 53 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:41:57"
- $ times      : Named num [1:6] 0 0.0176 0.0339 0.0785 0.3037 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:49"
+ $ times      : Named num [1:6] 0 0.0242 0.0418 0.0794 0.2649 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
@@ -545,8 +546,8 @@ List of 10
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
  $ content    : raw [1:332891] 5b 5b 22 50 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:41:58"
- $ times      : Named num [1:6] 0 0.000033 0 0.000141 0.344857 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:49"
+ $ times      : Named num [1:6] 0 0.000011 0 0.000086 0.281786 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
@@ -555,16 +556,16 @@ List of 10
 # A tibble: 14,995 × 5
    PWGTP AGEP  SEX   state year 
    &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
- 1 94    22    1     15    2022 
- 2 55    57    1     15    2022 
- 3 41    20    1     15    2022 
- 4 38    18    1     15    2022 
- 5 11    34    1     15    2022 
- 6 69    29    1     15    2022 
- 7 3     20    2     15    2022 
- 8 13    48    1     15    2022 
- 9 16    70    2     15    2022 
-10 30    25    1     15    2022 
+ 1 14    52    1     15    2022 
+ 2 19    52    2     15    2022 
+ 3 25    27    1     15    2022 
+ 4 74    66    1     15    2022 
+ 5 91    52    2     15    2022 
+ 6 45    46    2     15    2022 
+ 7 63    46    1     15    2022 
+ 8 50    18    2     15    2022 
+ 9 136   51    2     15    2022 
+10 93    20    1     15    2022 
 # ℹ 14,985 more rows</code></pre>
 </div>
 </div>
@@ -574,80 +575,112 @@ List of 10
 <p>Now that we have pulled in the data from the API, a quick inspection of the tibble above will show that not all of the fields are very useful in their current forms. For example, fields that we would expect to be categorical or time variables, are just integers. If we investigate, per API docs, some data for categorical and time variables is passed by the API as integers which are currently maintained as doubles. Therefore, we will need to build necessary tibbles to perform relevant lookups to fix this data. To do this, we will create another function called field mapping that handles this task for us. If we look at the fields we are allowing the use to select. Fields that are integers already and make sense as integers, should be fine to leave after adjusting for N/A. The remainder will need to be parsed and mapped. To make this easier on ourselves, we can use an API call to get the field items and make these their own tibbles! It is important that we only do this for the variables that need to be parsed and mapped through to make sure we do not overwrite the int values.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Possible data fields for numeric data and correct type needed</span></span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co"># "AGEP" (int), "GASP" (int), "GRPIP" (percent), "JWAP" (time), "JWDP" (time), "JWMNP" (int)</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co"># "PWGTP" (int), AGEP" (int), "GASP" (int), "GRPIP" (percent), "JWAP" (time), "JWDP" (time), "JWMNP" (int)</span></span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Possible data fields for categorical data and correct type needed</span></span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co"># "FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX" : All will become factors</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co"># "FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX", "ST", "DIVISION", "REGION" : All will become factors</span></span>
 <span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>data_clean <span class="ot">&lt;-</span> <span class="cf">function</span>(data) {</span>
 <span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># First, we can get the column names of the tibble that is passed in</span></span>
 <span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  columns <span class="ot">&lt;-</span> <span class="fu">names</span>(data)</span>
-<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Now we can check set intersections with the list of numeric, time, and categorical data fields to get the fields in each type we need to update</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Let's learn what year we are working with as well as the rename some columns</span></span>
 <span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  unique_years <span class="ot">&lt;-</span> <span class="fu">unique</span>(data<span class="sc">$</span>year)</span>
 <span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(unique_years) <span class="sc">!=</span> <span class="dv">1</span>) {</span>
 <span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"Pass a single-year tibble to data_clean()."</span>)</span>
 <span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>  }</span>
 <span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>  year <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(unique_years[<span class="dv">1</span>])</span>
-<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>  columns_to_check <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(columns, <span class="fu">c</span>(<span class="st">"year"</span>, <span class="st">"PWGTP"</span>))</span>
-<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>  num_var_check <span class="ot">&lt;-</span> <span class="fu">intersect</span>(columns_to_check, <span class="fu">c</span>(<span class="st">"AGEP"</span>, <span class="st">"GASP"</span>, <span class="st">"GRPIP"</span>, <span class="st">"JWMNP"</span>))</span>
-<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>  cat_var_check <span class="ot">&lt;-</span> <span class="fu">intersect</span>(columns_to_check, <span class="fu">c</span>(<span class="st">"FER"</span>, <span class="st">"HHL"</span>, <span class="st">"HISPEED"</span>, <span class="st">"JWTRNS"</span>, <span class="st">"SCH"</span>, <span class="st">"SCHL"</span>, <span class="st">"SEX"</span>))</span>
-<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>  time_vars_check <span class="ot">&lt;-</span> <span class="fu">intersect</span>(columns_to_check, <span class="fu">c</span>(<span class="st">"JWAP"</span>, <span class="st">"JWDP"</span>))</span>
-<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>  base_url <span class="ot">&lt;-</span> <span class="st">"https://api.census.gov/data/"</span></span>
-<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Now we can get jsons with explanations of the variables from the API. We will start with numeric variable. Here we can just change the data type</span></span>
-<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (num_var <span class="cf">in</span> num_var_check) {</span>
-<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>    data[[num_var]] <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(data[[num_var]])</span>
-<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Now for categorical data, we can get the mappings for the characters we were given and map them using factors</span></span>
-<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (cat_var <span class="cf">in</span> cat_var_check) {</span>
-<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>    query_url <span class="ot">&lt;-</span> <span class="fu">paste0</span>(base_url, year, <span class="st">"/acs/acs1/pums/variables/"</span>, cat_var, <span class="st">".json"</span>)</span>
-<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>    response <span class="ot">&lt;-</span> <span class="fu">response_test</span>(query_url)</span>
-<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Since we expect the data to be returned in a different format, we need to parse this data differently</span></span>
-<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>    parsed <span class="ot">&lt;-</span> <span class="fu">fromJSON</span>(<span class="fu">rawToChar</span>(response<span class="sc">$</span>content))</span>
-<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a>    items <span class="ot">&lt;-</span> parsed<span class="sc">$</span>values<span class="sc">$</span>item</span>
-<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(items)) {</span>
-<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a>      codes  <span class="ot">&lt;-</span> <span class="fu">names</span>(items)</span>
-<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a>      labels <span class="ot">&lt;-</span> <span class="fu">unname</span>(<span class="fu">unlist</span>(items))</span>
-<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>      data[[cat_var]] <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">as.character</span>(data[[cat_var]]), <span class="at">levels =</span> codes, <span class="at">labels =</span> labels)</span>
-<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Finally, time is a bit more complicated. We must get the times form the API, but we also need to parse them and find the midpoint</span></span>
-<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (time_var <span class="cf">in</span> time_vars_check) {</span>
-<span id="cb19-40"><a href="#cb19-40" aria-hidden="true" tabindex="-1"></a>    query_url <span class="ot">&lt;-</span> <span class="fu">paste0</span>(base_url, year, <span class="st">"/acs/acs1/pums/variables/"</span>, time_var, <span class="st">".json"</span>)</span>
-<span id="cb19-41"><a href="#cb19-41" aria-hidden="true" tabindex="-1"></a>    response <span class="ot">&lt;-</span> <span class="fu">response_test</span>(query_url)</span>
-<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Since we expect the data to be returned in a different format, we need to parse this data differently</span></span>
-<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a>    parsed <span class="ot">&lt;-</span> <span class="fu">fromJSON</span>(<span class="fu">rawToChar</span>(response<span class="sc">$</span>content))</span>
-<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a>    items <span class="ot">&lt;-</span> parsed<span class="sc">$</span>values<span class="sc">$</span>item</span>
-<span id="cb19-45"><a href="#cb19-45" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(items)) {</span>
-<span id="cb19-46"><a href="#cb19-46" aria-hidden="true" tabindex="-1"></a>      windows <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">codes =</span> <span class="fu">names</span>(items), <span class="at">label =</span> <span class="fu">unname</span>(<span class="fu">unlist</span>(items)))</span>
-<span id="cb19-47"><a href="#cb19-47" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a>    na_rows <span class="ot">&lt;-</span> windows <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="fu">grepl</span>(<span class="st">"N/A"</span>, label, <span class="at">ignore.case =</span> <span class="cn">TRUE</span>))</span>
-<span id="cb19-49"><a href="#cb19-49" aria-hidden="true" tabindex="-1"></a>    items_clean <span class="ot">&lt;-</span> windows <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">grepl</span>(<span class="st">"N/A"</span>, label, <span class="at">ignore.case =</span> <span class="cn">TRUE</span>))</span>
-<span id="cb19-50"><a href="#cb19-50" aria-hidden="true" tabindex="-1"></a>    items_clean <span class="ot">&lt;-</span> items_clean <span class="sc">|&gt;</span> <span class="fu">separate</span>(<span class="at">col =</span> label, <span class="at">into =</span> <span class="fu">c</span>(<span class="st">"Start_Time"</span>, <span class="st">"End_Time"</span>), <span class="at">sep =</span> <span class="st">" to "</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(<span class="at">Start_Time =</span> <span class="fu">str_trim</span>(Start_Time), <span class="at">End_Time =</span> <span class="fu">str_trim</span>(End_Time)) <span class="sc">|&gt;</span></span>
-<span id="cb19-52"><a href="#cb19-52" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(</span>
-<span id="cb19-53"><a href="#cb19-53" aria-hidden="true" tabindex="-1"></a>        <span class="at">Start_Time =</span> <span class="fu">str_replace_all</span>(Start_Time, <span class="st">"a</span><span class="sc">\\</span><span class="st">.m</span><span class="sc">\\</span><span class="st">."</span>, <span class="st">"AM"</span>),</span>
-<span id="cb19-54"><a href="#cb19-54" aria-hidden="true" tabindex="-1"></a>        <span class="at">Start_Time =</span> <span class="fu">str_replace_all</span>(Start_Time, <span class="st">"p</span><span class="sc">\\</span><span class="st">.m</span><span class="sc">\\</span><span class="st">."</span>, <span class="st">"PM"</span>),</span>
-<span id="cb19-55"><a href="#cb19-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">End_Time =</span> <span class="fu">str_replace_all</span>(End_Time, <span class="st">"a</span><span class="sc">\\</span><span class="st">.m</span><span class="sc">\\</span><span class="st">."</span>, <span class="st">"AM"</span>),</span>
-<span id="cb19-56"><a href="#cb19-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">End_Time =</span> <span class="fu">str_replace_all</span>(End_Time, <span class="st">"p</span><span class="sc">\\</span><span class="st">.m</span><span class="sc">\\</span><span class="st">."</span>, <span class="st">"PM"</span>),</span>
-<span id="cb19-57"><a href="#cb19-57" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">|&gt;</span></span>
-<span id="cb19-58"><a href="#cb19-58" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(</span>
-<span id="cb19-59"><a href="#cb19-59" aria-hidden="true" tabindex="-1"></a>        <span class="at">Start_Time_Form =</span> <span class="fu">parse_date_time</span>(Start_Time, <span class="at">orders =</span> <span class="st">"I:M p"</span>),</span>
-<span id="cb19-60"><a href="#cb19-60" aria-hidden="true" tabindex="-1"></a>        <span class="at">End_Time_Form =</span> <span class="fu">parse_date_time</span>(End_Time, <span class="at">orders =</span> <span class="st">"I:M p"</span>),</span>
-<span id="cb19-61"><a href="#cb19-61" aria-hidden="true" tabindex="-1"></a>        <span class="at">Midpoint =</span> Start_Time_Form <span class="sc">+</span> (End_Time_Form <span class="sc">-</span> Start_Time_Form) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb19-62"><a href="#cb19-62" aria-hidden="true" tabindex="-1"></a>        <span class="at">label =</span> <span class="fu">format</span>(Midpoint, <span class="st">"%I:%M %p"</span>)</span>
-<span id="cb19-63"><a href="#cb19-63" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">|&gt;</span></span>
-<span id="cb19-64"><a href="#cb19-64" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(codes, label)</span>
-<span id="cb19-65"><a href="#cb19-65" aria-hidden="true" tabindex="-1"></a>      data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span> </span>
-<span id="cb19-66"><a href="#cb19-66" aria-hidden="true" tabindex="-1"></a>        <span class="fu">mutate</span>(<span class="sc">!!</span><span class="fu">sym</span>(time_var) <span class="sc">:</span><span class="er">=</span> <span class="fu">str_pad</span>(<span class="sc">!!</span><span class="fu">sym</span>(time_var), <span class="at">width =</span> <span class="dv">3</span>, <span class="at">side =</span> <span class="st">"left"</span>, <span class="at">pad =</span> <span class="st">"0"</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb19-67"><a href="#cb19-67" aria-hidden="true" tabindex="-1"></a>        <span class="fu">left_join</span>(items_clean, <span class="at">by =</span> <span class="fu">setNames</span>(<span class="st">"codes"</span>, time_var)) <span class="sc">|&gt;</span> </span>
-<span id="cb19-68"><a href="#cb19-68" aria-hidden="true" tabindex="-1"></a>        <span class="fu">select</span>(<span class="sc">!</span><span class="fu">all_of</span>(time_var)) <span class="sc">|&gt;</span></span>
-<span id="cb19-69"><a href="#cb19-69" aria-hidden="true" tabindex="-1"></a>        <span class="fu">rename</span>(<span class="sc">!!</span><span class="fu">sym</span>(time_var) <span class="sc">:</span><span class="er">=</span> <span class="st">"label"</span>)</span>
-<span id="cb19-70"><a href="#cb19-70" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb19-71"><a href="#cb19-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(data)</span>
-<span id="cb19-72"><a href="#cb19-72" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>  geo_columns <span class="ot">&lt;-</span> <span class="fu">intersect</span>(columns, <span class="fu">c</span>(<span class="st">'state'</span>, <span class="st">'region'</span>, <span class="st">'division'</span>))</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(<span class="fu">length</span>(geo_columns) <span class="sc">!=</span> <span class="dv">0</span>) {</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (col <span class="cf">in</span> geo_columns) {</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (col <span class="sc">==</span> <span class="st">"state"</span>) {</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>        data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span> <span class="fu">rename</span>(<span class="at">ST =</span> state)</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>      <span class="cf">else</span> <span class="cf">if</span> (col <span class="sc">==</span> <span class="st">"division"</span>) {</span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>        data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span> <span class="fu">rename</span>(<span class="at">DIVISION =</span> division)</span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>      <span class="cf">else</span> <span class="cf">if</span> (col <span class="sc">==</span> <span class="st">"region"</span>) {</span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>        data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span> <span class="fu">rename</span>(<span class="at">REGION =</span> region)</span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Now that we have renamed some columns, we need to reset our columns variable</span></span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a>  columns <span class="ot">&lt;-</span> <span class="fu">names</span>(data)</span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>  columns_to_check <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(columns, <span class="fu">c</span>(<span class="st">"year"</span>))</span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a>  num_var_check <span class="ot">&lt;-</span> <span class="fu">intersect</span>(columns_to_check, <span class="fu">c</span>(<span class="st">"PWGTP"</span>, <span class="st">"AGEP"</span>, <span class="st">"GASP"</span>, <span class="st">"GRPIP"</span>, <span class="st">"JWMNP"</span>))</span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a>  cat_var_check <span class="ot">&lt;-</span> <span class="fu">intersect</span>(columns_to_check, <span class="fu">c</span>(<span class="st">"FER"</span>, <span class="st">"HHL"</span>, <span class="st">"HISPEED"</span>, <span class="st">"JWTRNS"</span>, <span class="st">"SCH"</span>, <span class="st">"SCHL"</span>, <span class="st">"SEX"</span>, <span class="st">"ST"</span>, <span class="st">"REGION"</span>, <span class="st">"DIVISION"</span>))</span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>  time_vars_check <span class="ot">&lt;-</span> <span class="fu">intersect</span>(columns_to_check, <span class="fu">c</span>(<span class="st">"JWAP"</span>, <span class="st">"JWDP"</span>))</span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a>  base_url <span class="ot">&lt;-</span> <span class="st">"https://api.census.gov/data/"</span></span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Now we can get jsons with explanations of the variables from the API. We will start with numeric variable. Here we can just change the data type</span></span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (num_var <span class="cf">in</span> num_var_check) {</span>
+<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a>    data[[num_var]] <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(data[[num_var]])</span>
+<span id="cb19-40"><a href="#cb19-40" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb19-41"><a href="#cb19-41" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Now for categorical data, we can get the mappings for the characters we were given and map them using factors</span></span>
+<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (cat_var <span class="cf">in</span> cat_var_check) {</span>
+<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a>    query_url <span class="ot">&lt;-</span> <span class="fu">paste0</span>(base_url, year, <span class="st">"/acs/acs1/pums/variables/"</span>, cat_var, <span class="st">".json"</span>)</span>
+<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a>    response <span class="ot">&lt;-</span> <span class="fu">response_test</span>(query_url)</span>
+<span id="cb19-45"><a href="#cb19-45" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Since we expect the data to be returned in a different format, we need to parse this data differently</span></span>
+<span id="cb19-46"><a href="#cb19-46" aria-hidden="true" tabindex="-1"></a>    parsed <span class="ot">&lt;-</span> <span class="fu">fromJSON</span>(<span class="fu">rawToChar</span>(response<span class="sc">$</span>content))</span>
+<span id="cb19-47"><a href="#cb19-47" aria-hidden="true" tabindex="-1"></a>    items <span class="ot">&lt;-</span> parsed<span class="sc">$</span>values<span class="sc">$</span>item</span>
+<span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Now that we can extract the codes and the respective labels </span></span>
+<span id="cb19-49"><a href="#cb19-49" aria-hidden="true" tabindex="-1"></a>    codes  <span class="ot">&lt;-</span> <span class="fu">names</span>(items)</span>
+<span id="cb19-50"><a href="#cb19-50" aria-hidden="true" tabindex="-1"></a>    labels <span class="ot">&lt;-</span> <span class="fu">unname</span>(<span class="fu">unlist</span>(items))</span>
+<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Now that we have the codes and labels, we can simply use the factor function to factor the codes and labels</span></span>
+<span id="cb19-52"><a href="#cb19-52" aria-hidden="true" tabindex="-1"></a>    data[[cat_var]] <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">as.character</span>(data[[cat_var]]), <span class="at">levels =</span> codes, <span class="at">labels =</span> labels)</span>
+<span id="cb19-53"><a href="#cb19-53" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb19-54"><a href="#cb19-54" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Finally, time is a bit more complicated. We must get the times form the API, but we also need to parse them and find the midpoint</span></span>
+<span id="cb19-55"><a href="#cb19-55" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (time_var <span class="cf">in</span> time_vars_check) {</span>
+<span id="cb19-56"><a href="#cb19-56" aria-hidden="true" tabindex="-1"></a>    query_url <span class="ot">&lt;-</span> <span class="fu">paste0</span>(base_url, year, <span class="st">"/acs/acs1/pums/variables/"</span>, time_var, <span class="st">".json"</span>)</span>
+<span id="cb19-57"><a href="#cb19-57" aria-hidden="true" tabindex="-1"></a>    response <span class="ot">&lt;-</span> <span class="fu">response_test</span>(query_url)</span>
+<span id="cb19-58"><a href="#cb19-58" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Since we expect the data to be returned in a different format, we need to parse this data differently</span></span>
+<span id="cb19-59"><a href="#cb19-59" aria-hidden="true" tabindex="-1"></a>    parsed <span class="ot">&lt;-</span> <span class="fu">fromJSON</span>(<span class="fu">rawToChar</span>(response<span class="sc">$</span>content))</span>
+<span id="cb19-60"><a href="#cb19-60" aria-hidden="true" tabindex="-1"></a>    items <span class="ot">&lt;-</span> parsed<span class="sc">$</span>values<span class="sc">$</span>item</span>
+<span id="cb19-61"><a href="#cb19-61" aria-hidden="true" tabindex="-1"></a>    <span class="co"># We will create a lookup table to merge in the correct times</span></span>
+<span id="cb19-62"><a href="#cb19-62" aria-hidden="true" tabindex="-1"></a>    windows <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">codes =</span> <span class="fu">names</span>(items), <span class="at">label =</span> <span class="fu">unname</span>(<span class="fu">unlist</span>(items)))</span>
+<span id="cb19-63"><a href="#cb19-63" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Let's remove the N/A code since the label will not return in a format we can parse. These will just end up as N/As anyway which is the correct interpretation</span></span>
+<span id="cb19-64"><a href="#cb19-64" aria-hidden="true" tabindex="-1"></a>    items_clean <span class="ot">&lt;-</span> windows <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">grepl</span>(<span class="st">"N/A"</span>, label, <span class="at">ignore.case =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb19-65"><a href="#cb19-65" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Next, we use the separate function to parse the column with the time windows into start and end times</span></span>
+<span id="cb19-66"><a href="#cb19-66" aria-hidden="true" tabindex="-1"></a>    items_clean <span class="ot">&lt;-</span> items_clean <span class="sc">|&gt;</span> <span class="fu">separate</span>(<span class="at">col =</span> label, <span class="at">into =</span> <span class="fu">c</span>(<span class="st">"Start_Time"</span>, <span class="st">"End_Time"</span>), <span class="at">sep =</span> <span class="st">" to "</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb19-67"><a href="#cb19-67" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Next, we trim the times to make sure there are no extra spaces left from the parsing</span></span>
+<span id="cb19-68"><a href="#cb19-68" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(<span class="at">Start_Time =</span> <span class="fu">str_trim</span>(Start_Time), <span class="at">End_Time =</span> <span class="fu">str_trim</span>(End_Time)) <span class="sc">|&gt;</span></span>
+<span id="cb19-69"><a href="#cb19-69" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Now, we will replace the a.m. and p.m. strings with AM and PM since this is what the time conversion function expects</span></span>
+<span id="cb19-70"><a href="#cb19-70" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(</span>
+<span id="cb19-71"><a href="#cb19-71" aria-hidden="true" tabindex="-1"></a>        <span class="at">Start_Time =</span> <span class="fu">str_replace_all</span>(Start_Time, <span class="st">"a</span><span class="sc">\\</span><span class="st">.m</span><span class="sc">\\</span><span class="st">."</span>, <span class="st">"AM"</span>),</span>
+<span id="cb19-72"><a href="#cb19-72" aria-hidden="true" tabindex="-1"></a>        <span class="at">Start_Time =</span> <span class="fu">str_replace_all</span>(Start_Time, <span class="st">"p</span><span class="sc">\\</span><span class="st">.m</span><span class="sc">\\</span><span class="st">."</span>, <span class="st">"PM"</span>),</span>
+<span id="cb19-73"><a href="#cb19-73" aria-hidden="true" tabindex="-1"></a>        <span class="at">End_Time =</span> <span class="fu">str_replace_all</span>(End_Time, <span class="st">"a</span><span class="sc">\\</span><span class="st">.m</span><span class="sc">\\</span><span class="st">."</span>, <span class="st">"AM"</span>),</span>
+<span id="cb19-74"><a href="#cb19-74" aria-hidden="true" tabindex="-1"></a>        <span class="at">End_Time =</span> <span class="fu">str_replace_all</span>(End_Time, <span class="st">"p</span><span class="sc">\\</span><span class="st">.m</span><span class="sc">\\</span><span class="st">."</span>, <span class="st">"PM"</span>),</span>
+<span id="cb19-75"><a href="#cb19-75" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">|&gt;</span></span>
+<span id="cb19-76"><a href="#cb19-76" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Now, we can parse the times to turn them into date time format</span></span>
+<span id="cb19-77"><a href="#cb19-77" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(</span>
+<span id="cb19-78"><a href="#cb19-78" aria-hidden="true" tabindex="-1"></a>        <span class="at">Start_Time_Form =</span> <span class="fu">parse_date_time</span>(Start_Time, <span class="at">orders =</span> <span class="st">"I:M p"</span>),</span>
+<span id="cb19-79"><a href="#cb19-79" aria-hidden="true" tabindex="-1"></a>        <span class="at">End_Time_Form =</span> <span class="fu">parse_date_time</span>(End_Time, <span class="at">orders =</span> <span class="st">"I:M p"</span>),</span>
+<span id="cb19-80"><a href="#cb19-80" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Once we have the correct forms of the start time and end time, we can find the midpoint</span></span>
+<span id="cb19-81"><a href="#cb19-81" aria-hidden="true" tabindex="-1"></a>        <span class="at">Midpoint =</span> Start_Time_Form <span class="sc">+</span> (End_Time_Form <span class="sc">-</span> Start_Time_Form) <span class="sc">/</span> <span class="dv">2</span>,</span>
+<span id="cb19-82"><a href="#cb19-82" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Finally, we can create our label column by reformatting the date time into the original format</span></span>
+<span id="cb19-83"><a href="#cb19-83" aria-hidden="true" tabindex="-1"></a>        <span class="at">label =</span> <span class="fu">format</span>(Midpoint, <span class="st">"%I:%M %p"</span>)</span>
+<span id="cb19-84"><a href="#cb19-84" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">|&gt;</span></span>
+<span id="cb19-85"><a href="#cb19-85" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Next we will drop all of the columns we don't need using select</span></span>
+<span id="cb19-86"><a href="#cb19-86" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(codes, label)</span>
+<span id="cb19-87"><a href="#cb19-87" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Now that we have the lookup table, it is time to merge it into our data table</span></span>
+<span id="cb19-88"><a href="#cb19-88" aria-hidden="true" tabindex="-1"></a>      data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span> </span>
+<span id="cb19-89"><a href="#cb19-89" aria-hidden="true" tabindex="-1"></a>        <span class="co"># First, we need to mutate the time_var of interest to pad the left side with 0s since this is the format of the lookup table. We use the !!sym(time_var) code to use the value stored in the variable</span></span>
+<span id="cb19-90"><a href="#cb19-90" aria-hidden="true" tabindex="-1"></a>        <span class="fu">mutate</span>(<span class="sc">!!</span><span class="fu">sym</span>(time_var) <span class="sc">:</span><span class="er">=</span> <span class="fu">str_pad</span>(<span class="sc">!!</span><span class="fu">sym</span>(time_var), <span class="at">width =</span> <span class="dv">3</span>, <span class="at">side =</span> <span class="st">"left"</span>, <span class="at">pad =</span> <span class="st">"0"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb19-91"><a href="#cb19-91" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Now that it is padded, we can perform a left join to merge in the labels. We want to match using the time_var column in the left table and the codes column in the right table</span></span>
+<span id="cb19-92"><a href="#cb19-92" aria-hidden="true" tabindex="-1"></a>        <span class="fu">left_join</span>(items_clean, <span class="at">by =</span> <span class="fu">setNames</span>(<span class="st">"codes"</span>, time_var)) <span class="sc">|&gt;</span> </span>
+<span id="cb19-93"><a href="#cb19-93" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Now we need to drop the original time_var column since it has the codes in it still</span></span>
+<span id="cb19-94"><a href="#cb19-94" aria-hidden="true" tabindex="-1"></a>        <span class="fu">select</span>(<span class="sc">!</span><span class="fu">all_of</span>(time_var)) <span class="sc">|&gt;</span></span>
+<span id="cb19-95"><a href="#cb19-95" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Finally we rename the label column with the time_var to maintain the same naming convention for our columns</span></span>
+<span id="cb19-96"><a href="#cb19-96" aria-hidden="true" tabindex="-1"></a>        <span class="fu">rename</span>(<span class="sc">!!</span><span class="fu">sym</span>(time_var) <span class="sc">:</span><span class="er">=</span> <span class="st">"label"</span>)</span>
+<span id="cb19-97"><a href="#cb19-97" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb19-98"><a href="#cb19-98" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Everything should now be cleaned, so we return the data table</span></span>
+<span id="cb19-99"><a href="#cb19-99" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(data)</span>
+<span id="cb19-100"><a href="#cb19-100" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
+<section id="api-function-testing" class="level3">
+<h3 class="anchored" data-anchor-id="api-function-testing">API Function Testing</h3>
+<p>First, let’s test the functions ability to pull data. We can simply run the function with arbitrary inputs to see if it works.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">single_year_data</span>(<span class="at">num_vars =</span> <span class="fu">c</span>(<span class="st">"JWAP"</span>, <span class="st">"JWDP"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">single_year_data</span>(<span class="at">year =</span> <span class="dv">2022</span>, <span class="at">num_vars =</span> <span class="fu">c</span>(<span class="st">"JWAP"</span>, <span class="st">"JWDP"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "API working as expected"
 List of 10
@@ -658,8 +691,8 @@ List of 10
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
  $ content    : raw [1:394310] 5b 5b 22 50 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:41:58"
- $ times      : Named num [1:6] 0 0.000011 0 0.00011 0.325206 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:50"
+ $ times      : Named num [1:6] 0 0.00003 0 0.000096 0.269066 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
@@ -671,21 +704,22 @@ List of 10
 <pre><code># A tibble: 14,995 × 6
    PWGTP JWAP  JWDP  SEX   state year 
    &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
- 1 14    0     0     1     15    2022 
- 2 19    102   61    2     15    2022 
- 3 25    70    28    1     15    2022 
- 4 74    0     0     1     15    2022 
- 5 91    85    37    2     15    2022 
- 6 45    102   58    2     15    2022 
- 7 63    62    19    1     15    2022 
- 8 50    102   55    2     15    2022 
- 9 136   79    37    2     15    2022 
-10 93    174   103   1     15    2022 
+ 1 94    107   67    1     15    2022 
+ 2 55    0     0     1     15    2022 
+ 3 41    77    37    1     15    2022 
+ 4 38    0     0     1     15    2022 
+ 5 11    0     0     1     15    2022 
+ 6 69    0     0     1     15    2022 
+ 7 3     0     0     2     15    2022 
+ 8 13    0     0     1     15    2022 
+ 9 16    0     0     2     15    2022 
+10 30    77    37    1     15    2022 
 # ℹ 14,985 more rows</code></pre>
 </div>
 </div>
+<p>The data pulled as we expected! Now we can try to clean the data. by running our data_clean function.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data_clean</span>(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">data_clean</span>(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "API working as expected"
 List of 10
@@ -696,8 +730,24 @@ List of 10
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
  $ content    : raw [1:204] 7b 0a 20 20 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:41:59"
- $ times      : Named num [1:6] 0 0.000034 0 0.000106 0.01922 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:50"
+ $ times      : Named num [1:6] 0.0 1.4e-05 0.0 9.1e-05 1.7e-01 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/ST.json"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:1587] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:50"
+ $ times      : Named num [1:6] 0 0.000023 0 0.000139 0.032197 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
@@ -712,8 +762,8 @@ List of 10
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
  $ content    : raw [1:11520] 7b 0a 20 20 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:41:59"
- $ times      : Named num [1:6] 0 0.000008 0 0.000035 0.023623 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:50"
+ $ times      : Named num [1:6] 0 0.000013 0 0.000063 0.020386 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
@@ -728,28 +778,29 @@ List of 10
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
  $ content    : raw [1:6174] 7b 0a 20 20 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:41:59"
- $ times      : Named num [1:6] 0 0.000015 0 0.000094 0.018149 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:51"
+ $ times      : Named num [1:6] 0 0.000012 0 0.00007 0.019501 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
  $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
  - attr(*, "class")= chr "response"</code></pre>
 </div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 14,995 × 6
-   PWGTP SEX    state year  JWAP     JWDP    
-   &lt;chr&gt; &lt;fct&gt;  &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;   
- 1 14    Male   15    2022  &lt;NA&gt;     &lt;NA&gt;    
- 2 19    Female 15    2022  08:42 AM 08:32 AM
- 3 25    Male   15    2022  06:02 AM 05:47 AM
- 4 74    Male   15    2022  &lt;NA&gt;     &lt;NA&gt;    
- 5 91    Female 15    2022  07:17 AM 06:32 AM
- 6 45    Female 15    2022  08:42 AM 08:17 AM
- 7 63    Male   15    2022  05:22 AM 05:02 AM
- 8 50    Female 15    2022  08:42 AM 08:02 AM
- 9 136   Female 15    2022  06:47 AM 06:32 AM
-10 93    Male   15    2022  02:42 PM 02:04 PM
+   PWGTP SEX    ST        year  JWAP     JWDP    
+   &lt;int&gt; &lt;fct&gt;  &lt;fct&gt;     &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;   
+ 1    94 Male   Hawaii/HI 2022  09:07 AM 09:02 AM
+ 2    55 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 3    41 Male   Hawaii/HI 2022  06:37 AM 06:32 AM
+ 4    38 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 5    11 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 6    69 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 7     3 Female Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 8    13 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 9    16 Female Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+10    30 Male   Hawaii/HI 2022  06:37 AM 06:32 AM
 # ℹ 14,985 more rows</code></pre>
 </div>
 </div>
@@ -759,51 +810,29 @@ List of 10
 <h2 class="anchored" data-anchor-id="final-functions">Final functions</h2>
 <section id="single-year-function" class="level3">
 <h3 class="anchored" data-anchor-id="single-year-function">Single Year Function</h3>
+<p>Now, we can make the final function to pull a single year of data by running both the single_year_data API call function and the data cleaning function, returning the output.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>single_year <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">year =</span> <span class="dv">2022</span>, <span class="at">num_vars =</span> <span class="fu">c</span>(<span class="st">"AGEP"</span>), <span class="at">cat_vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>), <span class="at">geography =</span> <span class="st">"State"</span>, <span class="at">geo_subset =</span> <span class="dv">15</span>) {</span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  data <span class="ot">&lt;-</span> <span class="fu">single_year_data</span>(<span class="at">year =</span> <span class="dv">2022</span>, <span class="at">num_vars =</span> <span class="fu">c</span>(<span class="st">"AGEP"</span>), <span class="at">cat_vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>), <span class="at">geography =</span> <span class="st">"State"</span>, <span class="at">geo_subset =</span> <span class="dv">15</span>)</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  data <span class="ot">&lt;-</span> <span class="fu">data_clean</span>(data)</span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(data)</span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>single_year <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">year =</span> <span class="dv">2022</span>, <span class="at">num_vars =</span> <span class="fu">c</span>(<span class="st">"AGEP"</span>), <span class="at">cat_vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>), <span class="at">geography =</span> <span class="st">"State"</span>, <span class="at">geo_subset =</span> <span class="dv">15</span>) {</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  data <span class="ot">&lt;-</span> <span class="fu">single_year_data</span>(year, num_vars, cat_vars, geography, geo_subset)</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  data <span class="ot">&lt;-</span> <span class="fu">data_clean</span>(data)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(data)</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-</section>
-<section id="multi-year-function" class="level3">
-<h3 class="anchored" data-anchor-id="multi-year-function">Multi Year Function</h3>
+<p>Now we can test this function:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co">#  ---------- Wrapper function for multiple years----------</span></span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>multiple_years <span class="ot">&lt;-</span> <span class="cf">function</span>(years,...) {</span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  multiple_yr_data <span class="ot">&lt;-</span> <span class="fu">lapply</span>(years, <span class="cf">function</span>(y) {</span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    res <span class="ot">&lt;-</span> <span class="fu">single_year</span>(y,...)  <span class="co"># call single-year function</span></span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Ensure res is a tibble</span></span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span>(<span class="st">"data.frame"</span> <span class="sc">%in%</span> <span class="fu">class</span>(res))) {</span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">value =</span> res)  <span class="co"># or wrap the single value appropriately</span></span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ensure year column exists</span></span>
-<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="st">"year"</span> <span class="sc">%in%</span> <span class="fu">names</span>(res)) {</span>
-<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>      res <span class="ot">&lt;-</span> res <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">year =</span> y)</span>
-<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    res</span>
-<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>  })</span>
-<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(multiple_yr_data)</span>
-<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># example</span></span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="dv">2012</span><span class="sc">:</span><span class="dv">2015</span></span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>final_tbl <span class="ot">&lt;-</span> <span class="fu">multiple_years</span>(y,<span class="at">num_vars =</span> <span class="fu">c</span>(<span class="st">"JWAP"</span>, <span class="st">"JWDP"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">single_year</span>(<span class="at">num_vars =</span> <span class="fu">c</span>(<span class="st">"JWAP"</span>, <span class="st">"JWDP"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "API working as expected"
 List of 10
- $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums?get=PWGTP,AGEP,SEX&amp;for=state:15"
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums?get=PWGTP,JWAP,JWDP,SEX&amp;for=state:15"
  $ status_code: int 200
  $ headers    :List of 11
   ..- attr(*, "class")= chr [1:2] "insensitive" "list"
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
- $ content    : raw [1:332891] 5b 5b 22 50 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:41:59"
- $ times      : Named num [1:6] 0 0.00001 0 0.000084 0.366639 ...
+ $ content    : raw [1:394310] 5b 5b 22 50 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:51"
+ $ times      : Named num [1:6] 0 0.000011 0 0.000086 0.271307 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
@@ -818,8 +847,8 @@ List of 10
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
  $ content    : raw [1:204] 7b 0a 20 20 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:42:00"
- $ times      : Named num [1:6] 0 0.000014 0 0.000087 0.019639 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:51"
+ $ times      : Named num [1:6] 0 0.000039 0 0.000115 0.020783 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
@@ -827,15 +856,15 @@ List of 10
  - attr(*, "class")= chr "response"
 [1] "API working as expected"
 List of 10
- $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums?get=PWGTP,AGEP,SEX&amp;for=state:15"
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/ST.json"
  $ status_code: int 200
  $ headers    :List of 11
   ..- attr(*, "class")= chr [1:2] "insensitive" "list"
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
- $ content    : raw [1:332891] 5b 5b 22 50 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:42:00"
- $ times      : Named num [1:6] 0 0.000009 0 0.00007 0.35907 ...
+ $ content    : raw [1:1587] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:51"
+ $ times      : Named num [1:6] 0.0 7.0e-06 0.0 3.0e-05 2.6e-02 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
@@ -843,15 +872,15 @@ List of 10
  - attr(*, "class")= chr "response"
 [1] "API working as expected"
 List of 10
- $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/SEX.json"
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/JWAP.json"
  $ status_code: int 200
  $ headers    :List of 11
   ..- attr(*, "class")= chr [1:2] "insensitive" "list"
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
- $ content    : raw [1:204] 7b 0a 20 20 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:42:00"
- $ times      : Named num [1:6] 0 0.000036 0 0.000113 0.022298 ...
+ $ content    : raw [1:11520] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:51"
+ $ times      : Named num [1:6] 0 0.000009 0 0.000046 0.019751 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
@@ -859,85 +888,244 @@ List of 10
  - attr(*, "class")= chr "response"
 [1] "API working as expected"
 List of 10
- $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums?get=PWGTP,AGEP,SEX&amp;for=state:15"
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/JWDP.json"
  $ status_code: int 200
  $ headers    :List of 11
   ..- attr(*, "class")= chr [1:2] "insensitive" "list"
  $ all_headers:List of 1
  $ cookies    :'data.frame':    1 obs. of  7 variables:
- $ content    : raw [1:332891] 5b 5b 22 50 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:42:00"
- $ times      : Named num [1:6] 0 0.000008 0 0.000059 0.363883 ...
-  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
- $ request    :List of 7
-  ..- attr(*, "class")= chr "request"
- $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
- - attr(*, "class")= chr "response"
-[1] "API working as expected"
-List of 10
- $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/SEX.json"
- $ status_code: int 200
- $ headers    :List of 11
-  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
- $ all_headers:List of 1
- $ cookies    :'data.frame':    1 obs. of  7 variables:
- $ content    : raw [1:204] 7b 0a 20 20 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:42:00"
- $ times      : Named num [1:6] 0 0.000014 0 0.000093 0.019142 ...
-  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
- $ request    :List of 7
-  ..- attr(*, "class")= chr "request"
- $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
- - attr(*, "class")= chr "response"
-[1] "API working as expected"
-List of 10
- $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums?get=PWGTP,AGEP,SEX&amp;for=state:15"
- $ status_code: int 200
- $ headers    :List of 11
-  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
- $ all_headers:List of 1
- $ cookies    :'data.frame':    1 obs. of  7 variables:
- $ content    : raw [1:332891] 5b 5b 22 50 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:42:01"
- $ times      : Named num [1:6] 0 0.000008 0 0.000053 0.322537 ...
-  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
- $ request    :List of 7
-  ..- attr(*, "class")= chr "request"
- $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
- - attr(*, "class")= chr "response"
-[1] "API working as expected"
-List of 10
- $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/SEX.json"
- $ status_code: int 200
- $ headers    :List of 11
-  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
- $ all_headers:List of 1
- $ cookies    :'data.frame':    1 obs. of  7 variables:
- $ content    : raw [1:204] 7b 0a 20 20 ...
- $ date       : POSIXct[1:1], format: "2025-09-30 23:42:01"
- $ times      : Named num [1:6] 0 0.000047 0 0.000124 0.01871 ...
+ $ content    : raw [1:6174] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:51"
+ $ times      : Named num [1:6] 0 0.000008 0 0.00004 0.048883 ...
   ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
  $ request    :List of 7
   ..- attr(*, "class")= chr "request"
  $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
  - attr(*, "class")= chr "response"</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(final_tbl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 59,980 × 5
-   PWGTP  AGEP SEX    state year 
-   &lt;chr&gt; &lt;int&gt; &lt;fct&gt;  &lt;chr&gt; &lt;chr&gt;
- 1 94       22 Male   15    2022 
- 2 55       57 Male   15    2022 
- 3 41       20 Male   15    2022 
- 4 38       18 Male   15    2022 
- 5 11       34 Male   15    2022 
- 6 69       29 Male   15    2022 
- 7 3        20 Female 15    2022 
- 8 13       48 Male   15    2022 
- 9 16       70 Female 15    2022 
-10 30       25 Male   15    2022 
-# ℹ 59,970 more rows</code></pre>
+<pre><code># A tibble: 14,995 × 6
+   PWGTP SEX    ST        year  JWAP     JWDP    
+   &lt;int&gt; &lt;fct&gt;  &lt;fct&gt;     &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;   
+ 1    94 Male   Hawaii/HI 2022  09:07 AM 09:02 AM
+ 2    55 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 3    41 Male   Hawaii/HI 2022  06:37 AM 06:32 AM
+ 4    38 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 5    11 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 6    69 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 7     3 Female Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 8    13 Male   Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+ 9    16 Female Hawaii/HI 2022  &lt;NA&gt;     &lt;NA&gt;    
+10    30 Male   Hawaii/HI 2022  06:37 AM 06:32 AM
+# ℹ 14,985 more rows</code></pre>
+</div>
+</div>
+</section>
+<section id="multi-year-function" class="level3">
+<h3 class="anchored" data-anchor-id="multi-year-function">Multi Year Function</h3>
+<p>Now, in order to pull multiple years, all we have to do is run this function for each year in a user’s selection.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co">#  ---------- Wrapper function for multiple years----------</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>multiple_years <span class="ot">&lt;-</span> <span class="cf">function</span>(years,...) {</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  multiple_yr_data <span class="ot">&lt;-</span> <span class="fu">lapply</span>(years, <span class="cf">function</span>(y) {</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>    res <span class="ot">&lt;-</span> <span class="fu">single_year</span>(y,...)  <span class="co"># call single-year function</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Ensure res is a tibble</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span>(<span class="st">"data.frame"</span> <span class="sc">%in%</span> <span class="fu">class</span>(res))) {</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">value =</span> res)  <span class="co"># or wrap the single value appropriately</span></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ensure year column exists</span></span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="st">"year"</span> <span class="sc">%in%</span> <span class="fu">names</span>(res)) {</span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>      res <span class="ot">&lt;-</span> res <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">year =</span> y)</span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>    res</span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(multiple_yr_data)</span>
+<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># example</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="dv">2021</span><span class="sc">:</span><span class="dv">2022</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>final_tbl <span class="ot">&lt;-</span> <span class="fu">multiple_years</span>(y,<span class="at">num_vars =</span> <span class="fu">c</span>(<span class="st">"JWAP"</span>, <span class="st">"JWDP"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2021/acs/acs1/pums?get=PWGTP,JWAP,JWDP,SEX&amp;for=state:15"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:393221] 5b 5b 22 50 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:51"
+ $ times      : Named num [1:6] 0 0.000009 0 0.000074 0.25306 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2021/acs/acs1/pums/variables/SEX.json"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:204] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:51"
+ $ times      : Named num [1:6] 0 0.000013 0 0.000082 0.02176 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2021/acs/acs1/pums/variables/ST.json"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:1587] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:52"
+ $ times      : Named num [1:6] 0 0.000007 0 0.000034 0.017298 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2021/acs/acs1/pums/variables/JWAP.json"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:11518] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:52"
+ $ times      : Named num [1:6] 0 0.000007 0 0.000045 0.019704 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2021/acs/acs1/pums/variables/JWDP.json"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:6172] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:51"
+ $ times      : Named num [1:6] 0 0.000007 0 0.000044 0.021459 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums?get=PWGTP,JWAP,JWDP,SEX&amp;for=state:15"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:394310] 5b 5b 22 50 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:52"
+ $ times      : Named num [1:6] 0 0.000008 0 0.000067 0.336227 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/SEX.json"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:204] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:52"
+ $ times      : Named num [1:6] 0 0.000035 0 0.000091 0.018347 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/ST.json"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:1587] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:52"
+ $ times      : Named num [1:6] 0 0.000007 0 0.00004 0.018668 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/JWAP.json"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:11520] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:52"
+ $ times      : Named num [1:6] 0 0.000007 0 0.000046 0.019586 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"
+[1] "API working as expected"
+List of 10
+ $ url        : chr "https://api.census.gov/data/2022/acs/acs1/pums/variables/JWDP.json"
+ $ status_code: int 200
+ $ headers    :List of 11
+  ..- attr(*, "class")= chr [1:2] "insensitive" "list"
+ $ all_headers:List of 1
+ $ cookies    :'data.frame':    1 obs. of  7 variables:
+ $ content    : raw [1:6174] 7b 0a 20 20 ...
+ $ date       : POSIXct[1:1], format: "2025-10-01 02:23:52"
+ $ times      : Named num [1:6] 0 0.000008 0 0.000028 0.023107 ...
+  ..- attr(*, "names")= chr [1:6] "redirect" "namelookup" "connect" "pretransfer" ...
+ $ request    :List of 7
+  ..- attr(*, "class")= chr "request"
+ $ handle     :Class 'curl_handle' &lt;externalptr&gt; 
+ - attr(*, "class")= chr "response"</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(final_tbl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 29,954 × 6
+   PWGTP SEX    ST        year  JWAP     JWDP    
+   &lt;int&gt; &lt;fct&gt;  &lt;fct&gt;     &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;   
+ 1   133 Female Hawaii/HI 2021  &lt;NA&gt;     &lt;NA&gt;    
+ 2   132 Male   Hawaii/HI 2021  06:12 AM 06:02 AM
+ 3    98 Male   Hawaii/HI 2021  &lt;NA&gt;     &lt;NA&gt;    
+ 4    99 Male   Hawaii/HI 2021  &lt;NA&gt;     &lt;NA&gt;    
+ 5   119 Female Hawaii/HI 2021  &lt;NA&gt;     &lt;NA&gt;    
+ 6   107 Male   Hawaii/HI 2021  &lt;NA&gt;     &lt;NA&gt;    
+ 7   130 Female Hawaii/HI 2021  &lt;NA&gt;     &lt;NA&gt;    
+ 8   238 Female Hawaii/HI 2021  09:02 AM 08:47 AM
+ 9   134 Female Hawaii/HI 2021  &lt;NA&gt;     &lt;NA&gt;    
+10   167 Male   Hawaii/HI 2021  08:02 AM 07:57 AM
+# ℹ 29,944 more rows</code></pre>
 </div>
 </div>
 
@@ -1019,7 +1207,7 @@ List of 10
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/t-creech\.github\.io\/ST558-Project1\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }

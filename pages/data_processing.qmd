@@ -289,11 +289,11 @@ data_clean <- function(data) {
     # Since we expect the data to be returned in a different format, we need to parse this data differently
     parsed <- fromJSON(rawToChar(response$content))
     items <- parsed$values$item
-    if (!is.null(items)) {
-      codes  <- names(items)
-      labels <- unname(unlist(items))
-      data[[cat_var]] <- factor(as.character(data[[cat_var]]), levels = codes, labels = labels)
-    }
+    # Now that we can extract the codes and the respective labels 
+    codes  <- names(items)
+    labels <- unname(unlist(items))
+    # Now that we have the codes and labels, we can simply use the factor function to factor the codes and labels
+    data[[cat_var]] <- factor(as.character(data[[cat_var]]), levels = codes, labels = labels)
   }
   # Finally, time is a bit more complicated. We must get the times form the API, but we also need to parse them and find the midpoint
   for (time_var in time_vars_check) {
@@ -302,32 +302,44 @@ data_clean <- function(data) {
     # Since we expect the data to be returned in a different format, we need to parse this data differently
     parsed <- fromJSON(rawToChar(response$content))
     items <- parsed$values$item
-    if (!is.null(items)) {
-      windows <- tibble(codes = names(items), label = unname(unlist(items)))
-    }
-    na_rows <- windows |> filter(grepl("N/A", label, ignore.case = TRUE))
+    # We will create a lookup table to merge in the correct times
+    windows <- tibble(codes = names(items), label = unname(unlist(items)))
+    # Let's remove the N/A code since the label will not return in a format we can parse. These will just end up as N/As anyway which is the correct interpretation
     items_clean <- windows |> filter(!grepl("N/A", label, ignore.case = TRUE))
+    # Next, we use the separate function to parse the column with the time windows into start and end times
     items_clean <- items_clean |> separate(col = label, into = c("Start_Time", "End_Time"), sep = " to ") |> 
+      # Next, we trim the times to make sure there are no extra spaces left from the parsing
       mutate(Start_Time = str_trim(Start_Time), End_Time = str_trim(End_Time)) |>
+      # Now, we will replace the a.m. and p.m. strings with AM and PM since this is what the time conversion function expects
       mutate(
         Start_Time = str_replace_all(Start_Time, "a\\.m\\.", "AM"),
         Start_Time = str_replace_all(Start_Time, "p\\.m\\.", "PM"),
         End_Time = str_replace_all(End_Time, "a\\.m\\.", "AM"),
         End_Time = str_replace_all(End_Time, "p\\.m\\.", "PM"),
       ) |>
+      # Now, we can parse the times to turn them into date time format
       mutate(
         Start_Time_Form = parse_date_time(Start_Time, orders = "I:M p"),
         End_Time_Form = parse_date_time(End_Time, orders = "I:M p"),
+        # Once we have the correct forms of the start time and end time, we can find the midpoint
         Midpoint = Start_Time_Form + (End_Time_Form - Start_Time_Form) / 2,
+        # Finally, we can create our label column by reformatting the date time into the original format
         label = format(Midpoint, "%I:%M %p")
       ) |>
+      # Next we will drop all of the columns we don't need using select
       select(codes, label)
+      # Now that we have the lookup table, it is time to merge it into our data table
       data <- data |> 
+        # First, we need to mutate the time_var of interest to pad the left side with 0s since this is the format of the lookup table. We use the !!sym(time_var) code to use the value stored in the variable
         mutate(!!sym(time_var) := str_pad(!!sym(time_var), width = 3, side = "left", pad = "0")) |>
+        # Now that it is padded, we can perform a left join to merge in the labels. We want to match using the time_var column in the left table and the codes column in the right table
         left_join(items_clean, by = setNames("codes", time_var)) |> 
+        # Now we need to drop the original time_var column since it has the codes in it still
         select(!all_of(time_var)) |>
+        # Finally we rename the label column with the time_var to maintain the same naming convention for our columns
         rename(!!sym(time_var) := "label")
   }
+  # Everything should now be cleaned, so we return the data table
   return(data)
 }
 ```
@@ -336,7 +348,7 @@ data_clean <- function(data) {
 
 First, let's test the functions ability to pull data. We can simply run the function with arbitrary inputs to see if it works.
 ```{R}
-data <- single_year_data(num_vars = c("JWAP", "JWDP"))
+data <- single_year_data(year = 2022, num_vars = c("JWAP", "JWDP"))
 print(data)
 ```
 
@@ -348,15 +360,21 @@ print(data)
 ```
 
 ## Final functions
+
 ### Single Year Function
 Now, we can make the final function to pull a single year of data by running both the single_year_data API call function and the data cleaning function, returning the output.
 ```{R}
 single_year <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX"), geography = "State", geo_subset = 15) {
-  data <- single_year_data(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX"), geography = "State", geo_subset = 15)
+  data <- single_year_data(year, num_vars, cat_vars, geography, geo_subset)
   data <- data_clean(data)
   return(data)
 }
+```
 
+Now we can test this function:
+```{R}
+data <- single_year(num_vars = c("JWAP", "JWDP"))
+print(data)
 ```
 
 ### Multi Year Function
@@ -383,7 +401,7 @@ if (!("data.frame" %in% class(res))) {
 
 ```{R}
 # example
-y <- 2012:2015
+y <- 2021:2022
 final_tbl <- multiple_years(y,num_vars = c("JWAP", "JWDP"))
 print(final_tbl)
 ```
