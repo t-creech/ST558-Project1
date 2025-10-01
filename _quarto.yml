@@ -9,6 +9,7 @@ project:
     
 website:
   title: "Project 1 Site"
+  site-url: https://t-creech.github.io/ST558-Project1/
   navbar:
     background: primary
     left:
