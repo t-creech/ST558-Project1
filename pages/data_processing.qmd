@@ -246,20 +246,36 @@ Now that we have pulled in the data from the API, a quick inspection of the tibb
 # "PWGTP" (int), AGEP" (int), "GASP" (int), "GRPIP" (percent), "JWAP" (time), "JWDP" (time), "JWMNP" (int)
 
 # Possible data fields for categorical data and correct type needed
-# "FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX" : All will become factors
+# "FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX", "ST", "DIVISION", "REGION" : All will become factors
 
 data_clean <- function(data) {
   # First, we can get the column names of the tibble that is passed in
   columns <- names(data)
-  # Now we can check set intersections with the list of numeric, time, and categorical data fields to get the fields in each type we need to update
+  # Let's learn what year we are working with as well as the rename some columns
   unique_years <- unique(data$year)
   if (length(unique_years) != 1) {
     stop("Pass a single-year tibble to data_clean().")
   }
   year <- as.integer(unique_years[1])
+  geo_columns <- intersect(columns, c('state', 'region', 'division'))
+  if(length(geo_columns) != 0) {
+    for (col in geo_columns) {
+      if (col == "state") {
+        data <- data |> rename(ST = state)
+      }
+      else if (col == "division") {
+        data <- data |> rename(DIVISION = division)
+      }
+      else if (col == "region") {
+        data <- data |> rename(REGION = region)
+      }
+    }
+  }
+  # Now that we have renamed some columns, we need to reset our columns variable
+  columns <- names(data)
   columns_to_check <- setdiff(columns, c("year"))
   num_var_check <- intersect(columns_to_check, c("PWGTP", "AGEP", "GASP", "GRPIP", "JWMNP"))
-  cat_var_check <- intersect(columns_to_check, c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX"))
+  cat_var_check <- intersect(columns_to_check, c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX", "ST", "REGION", "DIVISION"))
   time_vars_check <- intersect(columns_to_check, c("JWAP", "JWDP"))
   base_url <- "https://api.census.gov/data/"
   # Now we can get jsons with explanations of the variables from the API. We will start with numeric variable. Here we can just change the data type
