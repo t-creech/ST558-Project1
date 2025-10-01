@@ -243,7 +243,7 @@ Now that we have pulled in the data from the API, a quick inspection of the tibb
 
 ```{R}
 # Possible data fields for numeric data and correct type needed
-# "AGEP" (int), "GASP" (int), "GRPIP" (percent), "JWAP" (time), "JWDP" (time), "JWMNP" (int)
+# "PWGTP" (int), AGEP" (int), "GASP" (int), "GRPIP" (percent), "JWAP" (time), "JWDP" (time), "JWMNP" (int)
 
 # Possible data fields for categorical data and correct type needed
 # "FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX" : All will become factors
@@ -257,8 +257,8 @@ data_clean <- function(data) {
     stop("Pass a single-year tibble to data_clean().")
   }
   year <- as.integer(unique_years[1])
-  columns_to_check <- setdiff(columns, c("year", "PWGTP"))
-  num_var_check <- intersect(columns_to_check, c("AGEP", "GASP", "GRPIP", "JWMNP"))
+  columns_to_check <- setdiff(columns, c("year"))
+  num_var_check <- intersect(columns_to_check, c("PWGTP", "AGEP", "GASP", "GRPIP", "JWMNP"))
   cat_var_check <- intersect(columns_to_check, c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX"))
   time_vars_check <- intersect(columns_to_check, c("JWAP", "JWDP"))
   base_url <- "https://api.census.gov/data/"
@@ -316,16 +316,24 @@ data_clean <- function(data) {
 }
 ```
 
+### API Function Testing
+
+First, let's test the functions ability to pull data. We can simply run the function with arbitrary inputs to see if it works.
 ```{R}
 data <- single_year_data(num_vars = c("JWAP", "JWDP"))
 print(data)
 ```
+
+The data pulled as we expected! Now we can try to clean the data. by running our data_clean function.
+
 ```{R}
-data_clean(data)
+data <- data_clean(data)
+print(data)
 ```
 
 ## Final functions
 ### Single Year Function
+Now, we can make the final function to pull a single year of data by running both the single_year_data API call function and the data cleaning function, returning the output.
 ```{R}
 single_year <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX"), geography = "State", geo_subset = 15) {
   data <- single_year_data(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX"), geography = "State", geo_subset = 15)
@@ -336,7 +344,7 @@ single_year <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX"), 
 ```
 
 ### Multi Year Function
-
+Now, in order to pull multiple years, all we have to do is run this function for each year in a user's selection.
 ```{R}
 #  ---------- Wrapper function for multiple years----------
 multiple_years <- function(years,...) {
