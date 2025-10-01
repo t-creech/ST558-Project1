@@ -30,7 +30,11 @@ if(!require(jsonlite)){
     install.packages("jsonlite")
     library(jsonlite)
 }
-library(lubridate)
+
+if(!require(lubridate)){
+    install.packages("lubridate")
+    library(lubridate)
+}
 
 ```
 
@@ -293,7 +297,7 @@ data_clean <- function(data) {
     codes  <- names(items)
     labels <- unname(unlist(items))
     # Now that we have the codes and labels, we can simply use the factor function to factor the codes and labels
-    data[[cat_var]] <- factor(as.character(data[[cat_var]]), levels = codes, labels = labels)
+    data[[cat_var]] <- factor(as.integer(data[[cat_var]]), levels = as.integer(codes), labels = labels)
   }
   # Finally, time is a bit more complicated. We must get the times form the API, but we also need to parse them and find the midpoint
   for (time_var in time_vars_check) {
@@ -349,7 +353,7 @@ data_clean <- function(data) {
 
 First, let's test the functions ability to pull data. We can simply run the function with arbitrary inputs to see if it works.
 ```{R}
-data <- single_year_data(year = 2022, num_vars = c("JWAP", "JWDP"))
+data <- single_year_data(year = 2022, num_vars = c("AGEP","JWAP", "JWDP","JWMNP","GASP", "GRPIP"),cat_vars = c("SEX","SCH","SCHL","JWTRNS", "FER","HISPEED","HHL"))
 print(data)
 ```
 
@@ -363,11 +367,13 @@ print(data)
 ## Final functions
 
 ### Single Year Function
-Now, we can make the final function to pull a single year of data by running both the single_year_data API call function and the data cleaning function, returning the output.
+Now, we can make the final function to pull a single year of data by running both the single_year_data API call function and the data cleaning function, returning the output. Let's also get a head start on summarization by going ahead and assigning these a census class.
 ```{R}
 single_year <- function(year = 2022, num_vars = c("AGEP"), cat_vars = c("SEX"), geography = "State", geo_subset = 15) {
   data <- single_year_data(year, num_vars, cat_vars, geography, geo_subset)
   data <- data_clean(data)
+  # We can also assigne the class here
+  class(data) <- c("census", class(data))
   return(data)
 }
 ```
@@ -405,4 +411,14 @@ if (!("data.frame" %in% class(res))) {
 y <- 2021:2022
 final_tbl <- multiple_years(y,num_vars = c("JWAP", "JWDP"))
 print(final_tbl)
+```
+
+## Data to Use for Summarization Testing
+Now that we have the function we need and tested them, let's export some data to test our data summarization functions!
+
+```{R}
+summarization_test_data <- single_year(year = 2022, num_vars = c("AGEP","JWAP", "JWDP","JWMNP","GASP", "GRPIP"),cat_vars = c("SEX","SCH","SCHL","JWTRNS", "FER","HISPEED","HHL"))
+
+saveRDS(summarization_test_data, file = "summarization_test_data.rds")
+
 ```
