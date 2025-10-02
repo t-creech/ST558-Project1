@@ -6,5 +6,6 @@ editor_options:
   chunk_output_type: inline
 ---
 
-#Project Introduction
+# Project Introduction
+
 In this project, we will be implementing data processing and summarization functions on data that is pulled from the PUMS Census API!
