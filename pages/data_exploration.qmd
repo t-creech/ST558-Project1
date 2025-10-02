@@ -5,3 +5,53 @@ toc: TRUE
 editor_options: 
   chunk_output_type: inline
 ---
+
+
+ For the data exploration part, we will try to investigate the cost of living difference in Hawaii, and Illinois by comparing 
+ gas price (GASP) and gross rent as percentage of household income (GRPIP) 
+```{r}
+  # Use the API function to pull data for Illinois, geo_subset=17
+explore_il <- single_year(num_vars = c("AGEP", "GRPIP","GASP"),geo_subset = 17)
+print(explore_il)
+
+```
+```{r}
+ # Use the API function to pull data for Hawaii, geo_subset=15 (Default for our group)
+explore_hi <- single_year(num_vars = c("AGEP", "GRPIP","GASP"))
+print(explore_hi)
+```
+ Use the summary.census function to calculate the mean gas price and Gross rent as a percentage of household income past 12 months for state Illinois 
+ 
+```{r}
+explore_ils <- summary.census(df=explore_il)
+explore_ils
+class(explore_ils)
+
+
+```
+
+ Use the summary.census function to calculate the mean gas price and Gross rent as a percentage of household income past 12 months for state Hawaii  
+ 
+```{r}
+explore_his <- summary.census(df=explore_hi)
+explore_his
+class(explore_his)
+```
+# plot 
+
+
+```{r}
+  # Use the API function to pull data for Illinois, geo_subset=17 and Hawaii geo_subset=15
+explore_both <- single_year(num_vars = c("AGEP", "GRPIP","GASP"),geo_subset = c("17","15"))
+print(explore_both)
+
+```
+```{r}
+plot.census(explore_both, "GASP", "ST")
+```
+
+```{r}
+plot.census(explore_both, "GRPIP", "ST")
+
+```
+
