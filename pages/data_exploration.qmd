@@ -6,52 +6,163 @@ editor_options:
   chunk_output_type: inline
 ---
 
+## Package Imports
+First, we can import the necessary packages we need.
 
- For the data exploration part, we will try to investigate the cost of living difference in Hawaii, and Illinois by comparing 
- gas price (GASP) and gross rent as percentage of household income (GRPIP) 
+```{r warning=FALSE}
+#load required libraries
+if(!require(tidyverse)){
+    # If package is not available, install it then load it again
+    install.packages("tidyverse")
+    library(tidyverse)
+}
+
+if(!require(ggplot2)){
+    install.packages("ggplot2")
+    library(ggplot2)
+}
+
+if(!require(quantreg)){
+    install.packages("quantreg")
+    library(quantreg)
+}
+
+```
+
+## Functions
+Since qmd notebooks don't let us pull in functions from other notebooks (at least from what we could find). We will copy over the functions from our data summarization notebook so we can use them here.
+
 ```{r}
-  # Use the API function to pull data for Illinois, geo_subset=17
-explore_il <- single_year(num_vars = c("AGEP", "GRPIP","GASP"),geo_subset = 17)
+summary.census<- function(df, num_vars=c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP"), cat_vars=c("SEX","FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL")) {
+  
+  weight_vector <- df[["PWGTP"]]
+  results <- list() #initialize list
+  columns <- names(df)
+  num_vars_summarization <- intersect(columns, num_vars)
+  cat_vars_summarization <- intersect(columns, cat_vars)
+  
+  for (var in num_vars_summarization) {
+    #make sure all variables (including time variables) change to numeric to do calculations on them
+    numeric_vector <- as.numeric(df[[var]]) 
+    #calculate sample mean
+    sample_mean <- sum(numeric_vector * weight_vector, na.rm = TRUE) / sum(weight_vector, na.rm = TRUE) 
+    #calculate sample sd
+    sample_sd  <- sqrt(sum((numeric_vector^2) * weight_vector, na.rm = TRUE) / sum(weight_vector, na.rm = TRUE) - sample_mean^2) 
+    # Put the results in a list
+    results[[var]] <- list(mean = sample_mean, sd = sample_sd)
+  }
+  
+  # character / categorical variables
+  for (var in cat_vars_summarization) {
+    # First create a tibble by grouping and summarising
+    counts <- (df) |>
+     group_by(.data[[var]]) |>
+    summarise(count = sum(.data[["PWGTP"]], na.rm = TRUE), .groups = "drop") |>
+    # Now we can deframe to trasform from a tibble to a named list
+    deframe()
+    
+    results[[var]] <- as.list(counts)
+  }
+ return(results) # returns a named list
+}
+
+plot.census <- function(df, num_var, cat_var) {
+  ggplot(df,
+  aes(x = !!sym(cat_var), y = !!sym(num_var), weight = PWGTP)) +
+  geom_boxplot()+
+  labs(
+    x = cat_var,
+    y = num_var,
+    title = paste("Plot of", cat_var, "vs", num_var)) +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))#rename axis and title, center the title
+}
+```
+
+## Pulling in Data
+
+For the data exploration part, we will try to investigate the cost of living difference in Hawaii, and Illinois by comparing 
+gas price (GASP) and gross rent as percentage of household income (GRPIP) 
+ 
+First, we can pull in the data for Illinois.
+```{r}
+# Load in the data that we pulled at the end of data_exploration for Illinois
+explore_il <- readRDS("explore_il.rds")
 print(explore_il)
 
 ```
+
+Next, we will do the same for Hawaii
 ```{r}
- # Use the API function to pull data for Hawaii, geo_subset=15 (Default for our group)
-explore_hi <- single_year(num_vars = c("AGEP", "GRPIP","GASP"))
+# Load in the data that we pulled at the end of data_exploration for Hawaii
+explore_hi <- readRDS("explore_hi.rds")
 print(explore_hi)
 ```
- Use the summary.census function to calculate the mean gas price and Gross rent as a percentage of household income past 12 months for state Illinois 
+ 
+##Summarization
+ 
+Now, we can use the summary.census function to calculate the mean gas price and Gross rent as a percentage of household income in 2022 for state of Illinois. 
  
 ```{r}
 explore_ils <- summary.census(df=explore_il)
 explore_ils
 class(explore_ils)
-
-
 ```
 
- Use the summary.census function to calculate the mean gas price and Gross rent as a percentage of household income past 12 months for state Hawaii  
+Now, we can do the same Hawaii:  
  
 ```{r}
 explore_his <- summary.census(df=explore_hi)
 explore_his
 class(explore_his)
 ```
-# plot 
+From the results above, we can see that rent seems to be a larger portion of income in Hawaii, which one might expect considering Hawaii is known for having a higher cost of living. However, it is worth noting that the standard deviations of both groups are fairly high showing there is quite a bit of variability in that field for both states. Interestingly, the amount spent on gas seems to be much lower in Hawaii. A quick look at the variable description shows that the gas that is being measured here appears to be natural gas. This makes our result make more sense as the climate in Hawaii is much warmer, likely causing less need to use natural gas for heating your home. Conversly, Illinois experiences very cold winters, likely attributing to the increased spend on gas.
 
+## Plotting 
+Next, we can explore the plots of each state. We can do this by running our plotting function. First, let's combine the two tibbles to get all of the data into a single tibble for analysis.
 
 ```{r}
-  # Use the API function to pull data for Illinois, geo_subset=17 and Hawaii geo_subset=15
-explore_both <- single_year(num_vars = c("AGEP", "GRPIP","GASP"),geo_subset = c("17","15"))
+# We can simply combine the rows of the two tibbles 
+explore_both <- bind_rows(explore_il, explore_hi)
 print(explore_both)
-
 ```
+
+Now let's plot! First, we can investigate the gas costs for each state.
 ```{r}
 plot.census(explore_both, "GASP", "ST")
 ```
 
+The plots help us make sense of the results we were seeing earlier. Hawaii appears to have quite a bit of data points centered around the lowest part of the plot in comparison to Illinois.
+
+Next, we can look at rent.
 ```{r}
 plot.census(explore_both, "GRPIP", "ST")
+```
+Again, this plot helps to make sense of the higher means that we saw for Hawaii with the 75th percentile being signifcantly higher for Hawaii.
 
+##Altering Rent
+If we look at the GRPIP variable, people that own their own home or live rent-free are listed with a GRPIP of 0. It might be more meaningful if we remove these entries and analyze again.
+
+```{R}
+# First, we can filter out the 0 entries from each dataset
+explore_il_filtered <- explore_il |> filter(GRPIP != 0)
+explore_hi_filtered <- explore_hi |> filter(GRPIP != 0)
+explore_both_filtered <- explore_both |> filter(GRPIP != 0)
 ```
 
+Now that we filtered the dataset, let's summarize the two states individually for rent percentage of income.
+```{R}
+print(summary.census(explore_il_filtered, num_vars = c("GRPIP"), cat_vars = c()))
+```
+
+Now, we can do the same for Hawaii.
+```{R}
+print(summary.census(explore_hi_filtered, num_vars = c("GRPIP"), cat_vars = c()))
+```
+
+Finally, we can also plot.
+```{R}
+plot.census(explore_both_filtered, "GRPIP", "ST")
+```
+
+This makes the plots much more interpretable since everything is not drastically pushed towards 0. Interestingly enough though, the means of each state are fairly close to one another, and the plots show that the distribution is relatively similar between the two states. We find this interesting since it is often reported that the cost of living in Hawaii is substantially higher than most states, but people in these two states appear to spend relatively similar amounts on rent as a percentage of their income.

@@ -397,7 +397,7 @@ if (!("data.frame" %in% class(res))) {
 }
     # ensure year column exists
     if (!"year" %in% names(res)) {
-      res <- res %>% mutate(year = y)
+      res <- res |> mutate(year = y)
     }
     res
   })
@@ -420,5 +420,21 @@ Now that we have the function we need and tested them, let's export some data to
 summarization_test_data <- single_year(year = 2022, num_vars = c("AGEP","JWAP", "JWDP","JWMNP","GASP", "GRPIP"),cat_vars = c("SEX","SCH","SCHL","JWTRNS", "FER","HISPEED","HHL"))
 
 saveRDS(summarization_test_data, file = "summarization_test_data.rds")
+
+```
+
+## Data to Use for Exploration
+Finally, let's pull some data that will be used later in our data exploration!
+
+```{R}
+# First we will pull data from Illinois which is state number 17
+explore_il <- single_year(num_vars = c("AGEP", "GRPIP","GASP"),geo_subset = 17)
+
+saveRDS(explore_il, file = "explore_il.rds")
+
+# Let's also pull in data from Hawaii to compare. This is our default state code
+explore_hi <- single_year(num_vars = c("AGEP", "GRPIP","GASP"))
+
+saveRDS(explore_hi, file = "explore_hi.rds")
 
 ```

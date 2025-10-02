@@ -29,17 +29,6 @@ if(!require(quantreg)){
 
 ```
 
-## Data Loading
-
-Now, we can go ahead and load in the data that was exported by our data processing portion.
-
-```{r}
-#load the tibble we will be working with
-test_data <- readRDS("summarization_test_data.rds")
-class(test_data)   # tibble or data.frame
-head(test_data)
-```
-
 ## Functions
 ### Summarization
 Here is the  function that produces means and standard deviations for our numeric variable(s) and counts for our categorical variable(s).
@@ -66,9 +55,9 @@ summary.census<- function(df, num_vars=c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP"
   # character / categorical variables
   for (var in cat_vars_summarization) {
     # First create a tibble by grouping and summarising
-    counts <- (df) %>%
-     group_by(.data[[var]]) %>%
-    summarise(count = sum(.data[["PWGTP"]], na.rm = TRUE), .groups = "drop") %>%
+    counts <- (df) |>
+     group_by(.data[[var]]) |>
+    summarise(count = sum(.data[["PWGTP"]], na.rm = TRUE), .groups = "drop") |>
     # Now we can deframe to trasform from a tibble to a named list
     deframe()
     
@@ -93,6 +82,17 @@ plot.census <- function(df, num_var, cat_var) {
   theme(plot.title = element_text(hjust = 0.5))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))#rename axis and title, center the title
 }
+```
+
+## Data Loading
+
+Now, we can go ahead and load in the data that was exported by our data processing portion.
+
+```{r}
+#load the tibble we will be working with
+test_data <- readRDS("summarization_test_data.rds")
+class(test_data)   # tibble or data.frame
+head(test_data)
 ```
 
 ## Function Testing
